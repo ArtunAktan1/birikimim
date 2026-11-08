@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="description" content="Kişisel birikim ve altın takibi. Veriler yalnızca cihazında saklanır.">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://finans.truncgil.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Birikimim</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+:root{
+  --bg:#0f1115; --card:#181b22; --card2:#1f232c; --line:#2a2f3a;
+  --text:#eef0f4; --muted:#8b93a3; --green:#34d399; --green2:#10b981;
+  --gold:#f5c542; --gold2:#d4a017; --red:#f87171; --blue:#60a5fa;
+  --r:18px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px}
+body{min-height:100vh;overscroll-behavior-y:contain}
+.app{max-width:520px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) 16px 110px}
+header{display:flex;align-items:center;justify-content:space-between;margin:4px 2px 14px}
+header h1{font-size:20px;margin:0;font-weight:800;letter-spacing:-.3px}
+header .sub{color:var(--muted);font-size:12px;margin-top:2px}
+.iconbtn{background:var(--card);border:1px solid var(--line);color:var(--text);width:42px;height:42px;border-radius:12px;font-size:18px;cursor:pointer}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.card h3{margin:0 0 10px;font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+.hero{background:linear-gradient(145deg,#1d3b31,#16202a 60%,#2a2414);border:1px solid #2c4a3f}
+.big{font-size:34px;font-weight:800;letter-spacing:-1px}
+.muted{color:var(--muted)} .small{font-size:12px}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.stat{background:var(--card2);border-radius:14px;padding:12px}
+.stat .v{font-size:18px;font-weight:700;margin-top:4px}
+.stat .l{font-size:11px;color:var(--muted)}
+.pos{color:var(--green)} .neg{color:var(--red)} .goldc{color:var(--gold)}
+.ringwrap{display:flex;align-items:center;gap:16px;margin-top:14px}
+.ring{position:relative;width:110px;height:110px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring .pct{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:22px}
+.ring .pct span{font-size:10px;color:var(--muted);font-weight:500}
+.bar{height:12px;background:#0b0d11;border-radius:99px;overflow:hidden;margin:10px 0 8px}
+.bar>div{height:100%;background:linear-gradient(90deg,var(--green2),var(--green));border-radius:99px;transition:width .8s}
+.bar.done>div{background:linear-gradient(90deg,var(--green),var(--gold))}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.badge{font-size:12px;padding:6px 10px;border-radius:99px;background:var(--card2);border:1px solid var(--line);color:var(--muted)}
+.badge.on{background:#2b2512;border-color:#5a4a17;color:var(--gold)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:9px 14px;border-radius:12px;background:var(--card2);border:1px solid var(--line);color:var(--text);font-weight:600;cursor:pointer;font-size:14px;font-family:inherit}
+.chip.sel{background:#173a2d;border-color:var(--green2);color:var(--green)}
+.list .it{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.list .it:last-child{border-bottom:0}
+.list .ic{width:38px;height:38px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.list .t{flex:1;min-width:0}
+.list .t b{display:block;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list .t span{font-size:12px;color:var(--muted)}
+.list .a{font-weight:700;text-align:right;white-space:nowrap}
+.del{background:none;border:0;color:var(--muted);font-size:15px;cursor:pointer;padding:4px 6px;font-family:inherit}
+nav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,17,21,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:10}
+nav .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 70px 1fr 1fr;align-items:center}
+nav a{color:var(--muted);text-decoration:none;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:600}
+nav a .e{font-size:20px;filter:grayscale(1);opacity:.7}
+nav a.act{color:var(--text)} nav a.act .e{filter:none;opacity:1}
+.fab{width:56px;height:56px;border-radius:18px;background:linear-gradient(145deg,var(--green),var(--green2));border:0;color:#062016;font-size:30px;font-weight:700;margin:-26px auto 0;box-shadow:0 8px 24px rgba(16,185,129,.35);cursor:pointer;display:block}
+.view{display:none} .view.act{display:block;animation:fade .25s}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+.sheetbg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:var(--card);border-radius:22px 22px 0 0;border:1px solid var(--line);padding:18px 16px calc(20px + env(safe-area-inset-bottom));z-index:21;transform:translateY(105%);transition:transform .25s,visibility 0s .25s;visibility:hidden;max-height:90vh;overflow:auto}
+.sheet.open{transform:none;visibility:visible;transition:transform .25s}
+.sheet h2{margin:0 0 14px;font-size:18px}
+.sheet h4{margin:22px 0 4px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+label{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px;font-weight:600}
+input,select{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px;font-size:16px;font-family:inherit}
+input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--card2);border-radius:12px;padding:4px;gap:4px}
+.seg button{background:none;border:0;color:var(--muted);padding:10px;border-radius:9px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer}
+.seg button.sel{background:var(--card);color:var(--text)}
+.btn{width:100%;padding:15px;border-radius:14px;border:0;font-weight:800;font-size:16px;margin-top:16px;cursor:pointer;font-family:inherit;background:linear-gradient(145deg,var(--green),var(--green2));color:#062016}
+.btn.gold{background:linear-gradient(145deg,var(--gold),var(--gold2));color:#2a1f00}
+.btn.ghost{background:var(--card2);color:var(--text);border:1px solid var(--line);margin-top:10px}
+.btn.danger{background:#3a1717;color:#fca5a5;border:1px solid #5b2323;margin-top:10px}
+.check{display:flex;gap:10px;align-items:center;margin-top:12px;font-size:14px}
+.check input{width:20px;height:20px;flex:none}
+.toast{position:fixed;top:calc(16px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-160px);background:var(--card2);border:1px solid var(--line);padding:12px 16px;border-radius:14px;z-index:40;transition:transform .3s;font-weight:600;max-width:90vw}
+.toast.show{transform:translateX(-50%)}
+.empty{text-align:center;color:var(--muted);padding:20px 8px;font-size:14px}
+.notice{border-radius:14px;padding:12px;font-size:13px;margin-bottom:12px;display:flex;gap:10px;align-items:center}
+.notice.warn{background:#2a1f12;border:1px solid #5a3d17;color:#f5c08a}
+.notice.info{background:#132235;border:1px solid #1f3a5a;color:#9cc7f5}
+.notice button{margin-left:auto;background:none;border:1px solid currentColor;color:inherit;border-radius:10px;padding:6px 10px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+.pricepill{font-size:11px;padding:4px 8px;border-radius:99px;background:var(--card2);color:var(--muted)}
+.pricepill.stale{color:#f5c08a;background:#2a1f12}
+.filter{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px}
+.filter .chip{white-space:nowrap;padding:7px 11px;font-size:12px}
+.cw{position:relative}
+.dialog{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:30;padding:20px}
+.dialog .box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;max-width:360px;width:100%}
+.dialog .box p{margin:0 0 6px;line-height:1.45}
+.dialog .row{margin-top:14px}
+.dialog .row .btn{margin-top:0}
+.mrow{display:flex;justify-content:space-between;font-size:13px}
+.privacy{font-size:12px;color:var(--muted);line-height:1.5;margin-top:8px}
+</style>
+</head>
+<body>
+<canvas id="confetti"></canvas>
+<div class="toast" id="toast" role="status"></div>
+<div class="app">
+  <header>
+    <div><h1 id="hTitle">Birikimim</h1><div class="sub" id="hSub"></div></div>
+    <button class="iconbtn" id="btnSettings" aria-label="Ayarlar">⚙️</button>
+  </header>
+  <div id="notices"></div>
+
+  <!-- ÖZET -->
+  <section class="view" id="v-ozet">
+    <div class="card hero">
+      <div class="small muted">Toplam varlığım</div>
+      <div class="big" id="oTotal">—</div>
+      <div class="row small" style="margin-top:4px;gap:14px">
+        <span>💵 <b id="oCash">—</b></span><span class="goldc">🪙 <b id="oGold">—</b></span>
+      </div>
+      <div class="ringwrap">
+        <div class="ring">
+          <svg width="110" height="110"><circle cx="55" cy="55" r="47" stroke="#0b0d11" stroke-width="11" fill="none"/>
+          <circle id="oRing" cx="55" cy="55" r="47" stroke="url(#gr)" stroke-width="11" fill="none" stroke-linecap="round" stroke-dasharray="295.3" stroke-dashoffset="295.3" style="transition:stroke-dashoffset 1s"/>
+          <defs><linearGradient id="gr"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#f5c542"/></linearGradient></defs></svg>
+          <div class="pct"><div id="oPct">—</div><span>hedef</span></div>
+        </div>
+        <div style="flex:1">
+          <div style="font-weight:700" id="oGoalName"></div>
+          <div class="small muted" id="oGoalAmt"></div>
+          <div class="small" id="oRemain" style="margin-top:6px"></div>
+          <div class="small muted" id="oEta" style="margin-top:4px"></div>
+        </div>
+      </div>
+      <div class="badges" id="oBadges"></div>
+    </div>
+
+    <div class="card" id="mCard">
+      <div class="row between"><h3 style="margin:0" id="mTitle">Bu ayın hedefi</h3><button class="chip" id="btnMonthGoal" style="padding:5px 10px;font-size:12px">Düzenle</button></div>
+      <div id="mBody"></div>
+    </div>
+
+    <div class="grid3">
+      <div class="stat"><div class="l">🔥 Seri</div><div class="v" id="oStreak">0</div></div>
+      <div class="stat"><div class="l">Bu ay</div><div class="v" id="oMonth">—</div></div>
+      <div class="stat"><div class="l">Bu hafta</div><div class="v" id="oWeek">—</div></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h3>Hızlı ekle</h3>
+      <div class="chips" id="quick"></div>
+    </div>
+
+    <div class="card">
+      <div class="row between"><h3 style="margin:0">Son kayıtlar</h3><a href="#gecmis" class="small" style="color:var(--green)">Tümü →</a></div>
+      <div class="list" id="oRecent"></div>
+    </div>
+  </section>
+
+  <!-- ALTIN -->
+  <section class="view" id="v-altin">
+    <div class="card" style="background:linear-gradient(145deg,#2d2510,#181b22);border-color:#4a3c14">
+      <div class="row between"><div class="small muted">Altın varlığım (bozdurma değeri)</div><span class="pricepill" id="aUpd">—</span></div>
+      <div class="big goldc" id="aTotal">—</div>
+      <div class="row small" style="gap:14px;margin-top:4px">
+        <span>≈ <b id="aGram">—</b> gram altın</span>
+        <span id="aPL"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row between"><h3 style="margin:0">Anlık fiyatlar</h3><button class="chip" id="btnRefresh" style="padding:5px 10px;font-size:12px">↻ Yenile</button></div>
+      <div class="list" id="aPrices"></div>
+    </div>
+    <div class="card">
+      <div class="row between"><h3 style="margin:0">Altınlarım</h3><button class="chip" id="btnAddGold">+ Altın ekle</button></div>
+      <div class="list" id="aHold"></div>
+    </div>
+    <div class="card">
+      <h3>Gram altın fiyat geçmişi</h3>
+      <div class="cw" style="height:180px" id="cGoldPriceW"><canvas id="cGoldPrice"></canvas></div>
+      <div class="empty small" id="cGoldPriceEmpty">Fiyat geçmişi, uygulamayı açtığın her gün birikecek.</div>
+    </div>
+  </section>
+
+  <!-- İSTATİSTİK -->
+  <section class="view" id="v-istatistik">
+    <div class="card"><h3>Varlık zaman çizelgesi</h3><div class="cw" style="height:210px"><canvas id="cNet"></canvas></div></div>
+    <div class="card"><h3>Aylık net birikim ve hedef</h3><div class="cw" style="height:200px"><canvas id="cMonth"></canvas></div></div>
+    <div class="grid2" id="kpis"></div>
+    <div class="card" style="margin-top:12px"><h3>Kategoriye göre tasarruf</h3><div class="cw" style="height:220px"><canvas id="cCat"></canvas></div></div>
+    <div class="card"><h3>Haftanın günlerine göre</h3><div class="cw" style="height:170px"><canvas id="cDow"></canvas></div></div>
+    <div class="card"><h3>Aktivite (son 15 hafta)</h3><div id="heat"></div></div>
+  </section>
+
+  <!-- GEÇMİŞ -->
+  <section class="view" id="v-gecmis">
+    <div class="filter" id="gFilter"></div>
+    <div class="card"><div class="list" id="gList"></div></div>
+  </section>
+</div>
+
+<nav><div class="in">
+  <a href="#ozet" data-v="ozet"><span class="e">🏠</span>Özet</a>
+  <a href="#altin" data-v="altin"><span class="e">🪙</span>Altın</a>
+  <button class="fab" id="fab" aria-label="Kayıt ekle">+</button>
+  <a href="#istatistik" data-v="istatistik"><span class="e">📊</span>İstatistik</a>
+  <a href="#gecmis" data-v="gecmis"><span class="e">📜</span>Geçmiş</a>
+</div></nav>
+
+<div class="sheetbg" id="sheetbg"></div>
+
+<!-- Kayıt ekle -->
+<div class="sheet" id="sEntry">
+  <h2>Yeni kayıt</h2>
+  <div class="seg" id="eKind"><button data-k="save" class="sel">➕ Biriktirdim</button><button data-k="withdraw">➖ Çektim / Harcadım</button></div>
+  <label for="eAmt">Tutar (TL)</label>
+  <input class="amount" id="eAmt" inputmode="decimal" placeholder="0" autocomplete="off">
+  <label>Kategori</label>
+  <div class="chips" id="eCat"></div>
+  <label for="eNote">Not (isteğe bağlı)</label>
+  <input id="eNote" placeholder="örn. Bugün kahveyi evde yaptım" autocomplete="off">
+  <label for="eDate">Tarih</label>
+  <input type="date" id="eDate">
+  <button class="btn" id="eSave">Kaydet</button>
+</div>
+
+<!-- Altın ekle -->
+<div class="sheet" id="sGold">
+  <h2>Altın işlemi</h2>
+  <div class="seg" id="gKind"><button data-k="buy" class="sel">Aldım</button><button data-k="sell">Sattım</button></div>
+  <label for="gType">Tür</label>
+  <select id="gType"></select>
+  <label id="gQtyL" for="gQty">Miktar</label>
+  <input id="gQty" inputmode="decimal" placeholder="örn. 2" autocomplete="off">
+  <label for="gPrice">Birim fiyat (TL, isteğe bağlı — kâr/zarar için)</label>
+  <input id="gPrice" inputmode="decimal" placeholder="Boş bırakılırsa güncel fiyat" autocomplete="off">
+  <label for="gDate">Tarih</label>
+  <input type="date" id="gDate">
+  <div class="check"><input type="checkbox" id="gLink"><span id="gLinkL">Bu tutarı TL birikimimden düş</span></div>
+  <button class="btn gold" id="gSave">Kaydet</button>
+</div>
+
+<!-- Aylık hedef -->
+<div class="sheet" id="sMonth">
+  <h2>Aylık hedef</h2>
+  <label for="mDefault">Her ay için varsayılan hedef (TL)</label>
+  <input id="mDefault" inputmode="decimal" placeholder="örn. 3000" autocomplete="off">
+  <label for="mThis" id="mThisL">Sadece bu ay için farklı hedef (isteğe bağlı)</label>
+  <input id="mThis" inputmode="decimal" placeholder="Boş = varsayılan" autocomplete="off">
+  <p class="privacy">Aylık hedef, o ay biriktirdiklerinden çektiklerinin çıkarılmasıyla hesaplanır. Nakitle altın alıp satman (birikimden düş/ekle seçeneği) bir aktarım sayılır ve aylık hedefi etkilemez.</p>
+  <button class="btn" id="mSave">Kaydet</button>
+</div>
+
+<!-- Ayarlar -->
+<div class="sheet" id="sSet">
+  <h2>Ayarlar</h2>
+  <h4>Büyük hedef</h4>
+  <label for="sName">Hedefin adı</label>
+  <input id="sName" placeholder="örn. Yeni laptop" autocomplete="off">
+  <label for="sAmt">Hedef tutar (TL)</label>
+  <input id="sAmt" inputmode="decimal" placeholder="örn. 50000" autocomplete="off">
+  <label for="sDate">Hedef tarih (isteğe bağlı)</label>
+  <input type="date" id="sDate">
+  <div class="check"><input type="checkbox" id="sIncGold" checked><span>Altın değerini hedefe dahil et</span></div>
+  <button class="btn" id="sSave">Kaydet</button>
+
+  <h4>Yedek</h4>
+  <div class="small muted" id="sBackupInfo"></div>
+  <button class="btn ghost" id="sBackup">☁️ Yedekle (Drive'a kaydet)</button>
+  <button class="btn ghost" id="sRestore">📂 Yedekten geri yükle</button>
+  <input type="file" id="sRestoreFile" accept="application/json,.json" hidden>
+
+  <h4>Gizlilik</h4>
+  <p class="privacy">Tüm kayıtların yalnızca bu cihazda, tarayıcının uygulama deposunda tutulur. Hiçbir sunucuya gönderilmez; uygulamada hesap, reklam ya da analiz aracı yok. İnternete yalnızca altın fiyatlarını almak için çıkılır ve bu istekte senin hiçbir verin gönderilmez. Yedek dosyası yalnızca senin seçtiğin yere (örn. kendi Google Drive'ın) kaydedilir.</p>
+  <button class="btn danger" id="sWipe">Bu cihazdaki tüm verileri sil</button>
+</div>
+
+<div class="dialog" id="dlg"><div class="box"><div id="dlgText"></div><div class="row"><button class="btn ghost" id="dlgNo" style="margin-top:0">Vazgeç</button><button class="btn" id="dlgYes">Onayla</button></div></div></div>
+
+<script src="chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
