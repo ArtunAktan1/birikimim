@@ -294,7 +294,7 @@ function renderGold() {
   const h = holdings();
   const rows = Object.keys(h).filter(t => Math.abs(h[t]) > 1e-9).map(t => {
     const v = h[t] * priceOf(t);
-    return `<div class="it"><div class="ic">🟡</div><div class="t"><b>${GOLD[t][0]}</b><span>${N2.format(h[t])} ${GOLD[t][1]} × ${TL.format(priceOf(t))}</span></div><div class="a goldc">${TL.format(v)}</div></div>`;
+    return `<div class="it tap" data-gtype="${t}"><div class="ic">🟡</div><div class="t"><b>${GOLD[t][0]}</b><span>${N2.format(h[t])} ${GOLD[t][1]} × ${TL.format(priceOf(t))} · düzenlemek için dokun</span></div><div class="a goldc">${TL.format(v)}</div></div>`;
   }).join('');
   const tx = [...S.gold].sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts).map(g => `<div class="it tap" data-gedit="${g.id}"><div class="ic">${g.qty > 0 ? '⬇️' : '⬆️'}</div><div class="t"><b>${g.qty > 0 ? 'Alış' : 'Satış'}: ${N2.format(Math.abs(g.qty))} ${GOLD[g.type][1]} ${GOLD[g.type][0]}</b><span>${dShort(g.date)}${g.unit ? ` · birim ${TL.format(g.unit)}` : ''}</span></div><button class="del" data-gdel="${g.id}" aria-label="Sil">✕</button></div>`).join('');
   $('aHold').innerHTML = rows ? rows + `<div class="small muted" style="margin:14px 0 4px">İşlemler</div>${tx}` : (tx || '<div class="empty">Altınlarını ekle; anlık değerini ve kâr/zararını takip edelim.</div>');
@@ -408,6 +408,16 @@ document.addEventListener('click', async ev => {
   }
   const ed = ev.target.closest('[data-edit]'); if (ed) { openEntryEdit(ed.dataset.edit); return; }
   const ge = ev.target.closest('[data-gedit]'); if (ge) { openGoldEdit(ge.dataset.gedit); return; }
+  const gt = ev.target.closest('[data-gtype]');
+  if (gt) {
+    // Bu türde tek işlem varsa doğrudan düzenle; birden fazlaysa işlemleri göster ve vurgula
+    const txs = S.gold.filter(g => g.type === gt.dataset.gtype);
+    if (txs.length === 1) { openGoldEdit(txs[0].id); return; }
+    const els = txs.map(g => document.querySelector(`[data-gedit="${g.id}"]`)).filter(Boolean);
+    els[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    els.forEach(el => { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1800); });
+    toast(`${GOLD[gt.dataset.gtype][0]}: ${txs.length} işlem var, düzenlemek istediğine dokun`);
+  }
 });
 
 // ---- Altın işlemi <-> bağlı nakit kaydı ----
@@ -624,7 +634,19 @@ async function init() {
   try { if (navigator.storage?.persist && !(await navigator.storage.persisted())) await navigator.storage.persist(); } catch { }
   route();
   fetchPrices();
-  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => { });
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    // Yeni sürüm devreye girince, açık pencere yoksa sayfayı bir kez yenile
+    const hadController = !!navigator.serviceWorker.controller; let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloaded) return;
+      const tryReload = () => {
+        if (document.querySelector('.sheet.open') || $('dlg').style.display === 'flex') { setTimeout(tryReload, 3000); return; }
+        reloaded = true; location.reload();
+      };
+      tryReload();
+    });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => { });
+  }
 }
 init();
 })();

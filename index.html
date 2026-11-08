@@ -57,6 +57,8 @@ header .sub{color:var(--muted);font-size:12px;margin-top:2px}
 .list .it:last-child{border-bottom:0}
 .list .it.tap{cursor:pointer}
 .list .it.tap:active{background:rgba(255,255,255,.03)}
+.list .it.flash{animation:flash 1.8s}
+@keyframes flash{0%,60%{background:rgba(245,197,66,.18)}100%{background:transparent}}
 .list .ic{width:38px;height:38px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
 .list .t{flex:1;min-width:0}
 .list .t b{display:block;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
