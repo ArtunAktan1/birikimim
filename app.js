@@ -246,6 +246,7 @@ function render() {
   if (view === 'altin') renderGold();
   if (view === 'istatistik') renderStats();
   if (view === 'gecmis') renderHistory();
+  drawPriceAge();
 }
 
 function entryList(arr, withDel) {
@@ -260,6 +261,16 @@ function priceAge() {
   const up = S.prices?.updated; if (!up) return null;
   return Math.round((Date.now() - new Date(up.replace(' ', 'T') + '+03:00')) / 6e4);
 }
+function ageLabel() {
+  const m = priceAge();
+  return m === null ? 'fiyat yok' : m < 2 ? 'şimdi' : m < 60 ? `${m} dk önce` : m < 1440 ? `${Math.round(m / 60)} sa önce` : `${Math.round(m / 1440)} gün önce`;
+}
+function drawPriceAge() {
+  const m = priceAge(), stale = m === null || m > 240;
+  document.querySelectorAll('.updLabel').forEach(el => { el.textContent = fetching ? 'güncelleniyor…' : ageLabel(); });
+  document.querySelectorAll('.refresh').forEach(el => el.classList.toggle('stale', stale));
+  document.querySelectorAll('[data-act="refresh"]').forEach(el => el.classList.toggle('loading', fetching));
+}
 function renderGold() {
   const gv = goldValue(), cost = goldCost(), gp = priceOf('GRA');
   $('aTotal').textContent = TL.format(gv);
@@ -267,7 +278,7 @@ function renderGold() {
   const pl = gv - cost;
   $('aPL').innerHTML = cost > 0 ? `<span class="${pl >= 0 ? 'pos' : 'neg'}">${pl >= 0 ? '▲' : '▼'} ${TL.format(Math.abs(pl))} (${(pl / cost * 100).toFixed(1)}%)</span>` : '';
   const mins = priceAge();
-  $('aUpd').textContent = mins === null ? 'fiyat yok' : mins < 2 ? 'şimdi' : mins < 60 ? `${mins} dk önce` : mins < 1440 ? `${Math.round(mins / 60)} sa önce` : `${Math.round(mins / 1440)} gün önce`;
+  $('aUpd').textContent = ageLabel();
   $('aUpd').classList.toggle('stale', mins === null || mins > 240);
   $('aPrices').innerHTML = S.prices ? SHOW_PRICES.map(t => {
     const p = S.prices.items[t]; if (!p) return '';
@@ -378,6 +389,7 @@ document.addEventListener('click', async ev => {
   const q = ev.target.closest('[data-q]'); if (q) { addEntry({ kind: 'save', amount: +q.dataset.q, category: 'diger', note: '', date: today() }); return; }
   const f = ev.target.closest('[data-f]'); if (f) { gFilter = f.dataset.f; renderHistory(); return; }
   const a = ev.target.closest('[data-act="backup"]'); if (a) { backup(); return; }
+  const rf = ev.target.closest('[data-act="refresh"]'); if (rf) { fetchPrices(true); return; }
   const d = ev.target.closest('[data-del],[data-gdel]');
   if (d) {
     if (!d.dataset.confirm) {
@@ -488,7 +500,7 @@ $('sWipe').onclick = async () => {
 // ================= Altın fiyatları =================
 let fetching = false;
 async function fetchPrices(manual) {
-  if (fetching) return; fetching = true;
+  if (fetching) return; fetching = true; drawPriceAge();
   try {
     const r = await fetch(PRICE_API, { cache: 'no-store', referrerPolicy: 'no-referrer', credentials: 'omit' });
     if (!r.ok) throw new Error(r.status);
@@ -503,9 +515,9 @@ async function fetchPrices(manual) {
     if (manual) toast('Fiyatlar güncellendi');
   } catch (e) {
     if (manual) toast('Fiyatlar alınamadı, internetini kontrol et');
-  } finally { fetching = false; }
+  } finally { fetching = false; drawPriceAge(); }
 }
-$('btnRefresh').onclick = () => fetchPrices(true);
+setInterval(drawPriceAge, 60 * 1000); // "x dk önce" yazısı kendiliğinden ilerlesin
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { const a = priceAge(); if (a === null || a > 10) fetchPrices(); render(); } });
 setInterval(() => { if (!document.hidden) fetchPrices(); }, 15 * 60 * 1000);
 window.addEventListener('online', () => { fetchPrices(); notices(); });

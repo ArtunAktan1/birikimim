@@ -96,6 +96,9 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
 .pricepill{font-size:11px;padding:4px 8px;border-radius:99px;background:var(--card2);color:var(--muted)}
 .pricepill.stale{color:#f5c08a;background:#2a1f12}
+.refresh{margin-left:auto;background:rgba(0,0,0,.25);border:1px solid #2c4a3f;color:var(--text);border-radius:99px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}
+.refresh.stale{color:#f5c08a;border-color:#5a3d17}
+[data-act="refresh"].loading{opacity:.6;pointer-events:none}
 .filter{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px}
 .filter .chip{white-space:nowrap;padding:7px 11px;font-size:12px}
 .cw{position:relative}
@@ -125,6 +128,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
       <div class="big" id="oTotal">—</div>
       <div class="row small" style="margin-top:4px;gap:14px">
         <span>💵 <b id="oCash">—</b></span><span class="goldc">🪙 <b id="oGold">—</b></span>
+        <button class="refresh" data-act="refresh" aria-label="Altın fiyatlarını yenile">↻ <span class="updLabel">—</span></button>
       </div>
       <div class="ringwrap">
         <div class="ring">
@@ -176,7 +180,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
       </div>
     </div>
     <div class="card">
-      <div class="row between"><h3 style="margin:0">Anlık fiyatlar</h3><button class="chip" id="btnRefresh" style="padding:5px 10px;font-size:12px">↻ Yenile</button></div>
+      <div class="row between"><h3 style="margin:0">Anlık fiyatlar</h3><button class="chip" data-act="refresh" style="padding:5px 10px;font-size:12px">↻ Yenile</button></div>
       <div class="list" id="aPrices"></div>
     </div>
     <div class="card">
