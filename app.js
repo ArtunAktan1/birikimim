@@ -121,18 +121,15 @@ const sumRange = (from, to) => S.entries.reduce((a, e) => a + (e.date >= from &&
 function monthNet(m) { return sumRange(m + '-01', m + '-31'); }
 const monthOnly = m => new Date(m + '-15T12:00:00').toLocaleDateString('tr-TR', { month: 'long' });
 function prevMonth(m) { const [y, mo] = m.split('-').map(Number); return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, '0')}`; }
-// Günlük birikim hızı: bu ayın 1'inden (ya da ilk kayıttan) bugüne; bu ay net birikim yoksa geçen ayın tamamı
-function monthRate() {
-  const m = thisMonth(), start = startDate();
-  const from = start > m + '-01' ? start : m + '-01';
-  let net = monthNet(m), days = Math.max(1, daysBetween(from, today()) + 1);
-  if (net > 0) return { month: m, net, rate: net / days, prev: false };
-  const p = prevMonth(m), pEnd = `${p}-${String(daysInMonth(p)).padStart(2, '0')}`, pNet = monthNet(p);
-  if (pNet > 0 && start <= pEnd) {
-    const pFrom = start > p + '-01' ? start : p + '-01';
-    return { month: p, net: pNet, rate: pNet / Math.max(1, daysBetween(pFrom, pEnd) + 1), prev: true };
-  }
-  return { month: m, net, rate: 0, prev: false };
+function addMonths(m, n) { const [y, mo] = m.split('-').map(Number); const t = y * 12 + (mo - 1) + n; return `${Math.floor(t / 12)}-${String(t % 12 + 1).padStart(2, '0')}`; }
+function monthsBetween(a, b) { const [y1, m1] = a.split('-').map(Number), [y2, m2] = b.split('-').map(Number); return (y2 - y1) * 12 + (m2 - m1); }
+// Aylık hız: tamamlanmış takvim aylarının gerçek toplamlarının ortalaması (günlük hızdan türetilmez).
+// Henüz tamamlanmış ay yoksa bu ayın şu ana kadarki toplamı kullanılır.
+function monthlyPace() {
+  const m = thisMonth(), cur = monthNet(m);
+  const done = monthsRange().filter(x => x < m);
+  if (done.length) return { cur, pace: done.reduce((a, x) => a + monthNet(x), 0) / done.length, n: done.length, basis: 'avg' };
+  return { cur, pace: cur, n: 0, basis: 'current' };
 }
 function monthGoal(m) { return S.monthGoals[m] ?? S.settings.monthlyGoal ?? 0; }
 const saveDates = () => [...new Set(S.entries.filter(e => e.kind !== 'withdraw' && !TRANSFER.has(e.category)).map(e => e.date))].sort();
@@ -231,14 +228,21 @@ function render() {
     let eta = '';
     if (goal && base < goal) {
       // Referans: içinde bulunulan takvim ayı (1'inden bugüne). Bu ay henüz net birikim yoksa geçen ayın tamamı.
-      const r = monthRate();
+      const r = monthlyPace(), rem = goal - base;
       const cap = s => s.charAt(0).toLocaleUpperCase('tr-TR') + s.slice(1);
-      if (r.rate > 0) {
-        const monthly = r.rate * daysInMonth(m);
-        eta = `${cap(monthOnly(r.month))} birikimi: ${TL.format(r.net)} (ayda ~${TL.format(monthly)})${r.prev ? '\nBu ay henüz kayıt yok, geçen aya göre:' : ''}`
-          + `\nBu hızla hedefe ${dLong(addDays(today(), Math.ceil((goal - base) / r.rate)))} tarihinde ulaşırsın`;
-        if (st.goalDate && st.goalDate > today()) eta += `\nHedef tarihe yetişmek için ayda ~${TL.format((goal - base) / Math.max(1, daysBetween(today(), st.goalDate)) * 30.44)} gerekli`;
-      } else eta = `${cap(monthOnly(m))} ayında henüz net birikim yok; tahmin bu ayın birikimine göre hesaplanır`;
+      const lines = [`${cap(monthOnly(m))} birikimi: ${TL.format(r.cur)}`];
+      lines.push(r.basis === 'avg'
+        ? `Aylık ortalaman: ${TL.format(r.pace)} (${r.n} ay)`
+        : 'İlk ay bitince aylık ortalaman hesaplanacak; şimdilik bu ay baz alındı');
+      if (r.pace > 0) {
+        const k = Math.ceil(rem / r.pace);
+        lines.push(`Bu hızla hedefe ${k} ay sonra, ${monthName(addMonths(m, k))} civarı ulaşırsın`);
+      } else lines.push('Tahmin için aylık birikimin artıda olmalı');
+      if (st.goalDate && st.goalDate > today()) {
+        const left = Math.max(1, monthsBetween(m, st.goalDate.slice(0, 7)));
+        lines.push(`Hedef tarihe yetişmek için ayda ~${TL.format(rem / left)} gerekli (${left} ay)`);
+      }
+      eta = lines.join('\n');
     }
     $('oEta').textContent = eta;
     $('oBadges').innerHTML = goal ? MILESTONES.map(x => `<span class="badge ${pct >= x ? 'on' : ''}">${pct >= x ? '🏅' : '○'} %${x}</span>`).join('') : '';
