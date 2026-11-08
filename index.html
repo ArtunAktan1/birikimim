@@ -55,6 +55,8 @@ header .sub{color:var(--muted);font-size:12px;margin-top:2px}
 .chip.sel{background:#173a2d;border-color:var(--green2);color:var(--green)}
 .list .it{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
 .list .it:last-child{border-bottom:0}
+.list .it.tap{cursor:pointer}
+.list .it.tap:active{background:rgba(255,255,255,.03)}
 .list .ic{width:38px;height:38px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
 .list .t{flex:1;min-width:0}
 .list .t b{display:block;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -178,6 +180,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
         <span>≈ <b id="aGram">—</b> gram altın</span>
         <span id="aPL"></span>
       </div>
+      <div class="small muted" id="aCost" style="margin-top:8px;line-height:1.5"></div>
     </div>
     <div class="card">
       <div class="row between"><h3 style="margin:0">Anlık fiyatlar</h3><button class="chip" data-act="refresh" style="padding:5px 10px;font-size:12px">↻ Yenile</button></div>
@@ -223,7 +226,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
 
 <!-- Kayıt ekle -->
 <div class="sheet" id="sEntry">
-  <h2>Yeni kayıt</h2>
+  <h2 id="eTitle">Yeni kayıt</h2>
   <div class="seg" id="eKind"><button data-k="save" class="sel">➕ Biriktirdim</button><button data-k="withdraw">➖ Çektim / Harcadım</button></div>
   <label for="eAmt">Tutar (TL)</label>
   <input class="amount" id="eAmt" inputmode="decimal" placeholder="0" autocomplete="off">
@@ -234,11 +237,12 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
   <label for="eDate">Tarih</label>
   <input type="date" id="eDate">
   <button class="btn" id="eSave">Kaydet</button>
+  <button class="btn danger" id="eDelete" style="display:none">Bu kaydı sil</button>
 </div>
 
 <!-- Altın ekle -->
 <div class="sheet" id="sGold">
-  <h2>Altın işlemi</h2>
+  <h2 id="gTitle">Altın işlemi</h2>
   <div class="seg" id="gKind"><button data-k="buy" class="sel">Aldım</button><button data-k="sell">Sattım</button></div>
   <label for="gType">Tür</label>
   <select id="gType"></select>
@@ -250,6 +254,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
   <input type="date" id="gDate">
   <div class="check"><input type="checkbox" id="gLink"><span id="gLinkL">Bu tutarı TL birikimimden düş</span></div>
   <button class="btn gold" id="gSave">Kaydet</button>
+  <button class="btn danger" id="gDelete" style="display:none">Bu işlemi sil</button>
 </div>
 
 <!-- Aylık hedef -->

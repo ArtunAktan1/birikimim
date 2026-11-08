@@ -1,6 +1,6 @@
 // Uygulama dosyalarını önbelleğe alır; internet olmadan da açılır.
 // Yalnızca bu sitenin kendi dosyaları önbelleğe alınır; fiyat isteklerine ve verilere dokunulmaz.
-const CACHE = 'birikimim-v2';
+const CACHE = 'birikimim-v3';
 const SHELL = ['./', './index.html', './app.js', './chart.umd.min.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
 

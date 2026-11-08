@@ -84,8 +84,8 @@ function normalize(d) {
   const s = Object.assign(EMPTY(), d || {});
   s.settings = Object.assign({ includeGold: true }, s.settings || {});
   s.monthGoals = s.monthGoals || {}; s.hist = s.hist || {};
-  s.entries = (s.entries || []).filter(e => e && e.date && isFinite(e.amount)).map(e => ({ id: e.id || uid(), kind: e.kind === 'withdraw' ? 'withdraw' : 'save', amount: +e.amount, category: e.category || 'diger', note: String(e.note || '').slice(0, 120), date: String(e.date).slice(0, 10), ts: +e.ts || Date.now() }));
-  s.gold = (s.gold || []).filter(g => g && GOLD[g.type] && isFinite(g.qty)).map(g => ({ id: g.id || uid(), type: g.type, qty: +g.qty, unit: +g.unit || 0, date: String(g.date).slice(0, 10), ts: +g.ts || Date.now() }));
+  s.entries = (s.entries || []).filter(e => e && e.date && isFinite(e.amount)).map(e => ({ id: e.id || uid(), kind: e.kind === 'withdraw' ? 'withdraw' : 'save', amount: +e.amount, category: e.category || 'diger', note: String(e.note || '').slice(0, 120), date: String(e.date).slice(0, 10), ts: +e.ts || Date.now(), ...(e.link ? { link: String(e.link) } : {}) }));
+  s.gold = (s.gold || []).filter(g => g && GOLD[g.type] && isFinite(g.qty)).map(g => ({ id: g.id || uid(), type: g.type, qty: +g.qty, unit: +g.unit || 0, date: String(g.date).slice(0, 10), ts: +g.ts || Date.now(), ...(g.link ? { link: String(g.link) } : {}) }));
   sortEntries(s);
   return s;
 }
@@ -252,7 +252,7 @@ function render() {
 function entryList(arr, withDel) {
   return arr.map(e => {
     const c = catInfo(e.category, e.kind), w = e.kind === 'withdraw';
-    return `<div class="it"><div class="ic">${c[1]}</div><div class="t"><b>${esc(e.note || c[2])}</b><span>${c[2]} · ${dShort(e.date)}</span></div>
+    return `<div class="it tap" data-edit="${e.id}"><div class="ic">${c[1]}</div><div class="t"><b>${esc(e.note || c[2])}</b><span>${c[2]} · ${dShort(e.date)}</span></div>
     <div class="a ${w ? 'neg' : 'pos'}">${w ? '−' : '+'}${TL.format(e.amount)}</div>${withDel ? `<button class="del" data-del="${e.id}" aria-label="Sil">✕</button>` : ''}</div>`;
   }).join('');
 }
@@ -277,6 +277,12 @@ function renderGold() {
   $('aGram').textContent = gp ? N2.format(gv / gp) : '—';
   const pl = gv - cost;
   $('aPL').innerHTML = cost > 0 ? `<span class="${pl >= 0 ? 'pos' : 'neg'}">${pl >= 0 ? '▲' : '▼'} ${TL.format(Math.abs(pl))} (${(pl / cost * 100).toFixed(1)}%)</span>` : '';
+  // Makas: şu an alıp hemen bozdursan kaybedeceğin tutar (bilgi amaçlı)
+  const h0 = holdings(); let spread = 0;
+  for (const t in h0) { const p = S.prices?.items?.[t]; if (p && h0[t] > 0) spread += h0[t] * (p.sell - p.buy); }
+  $('aCost').innerHTML = cost > 0
+    ? `Ödediğin: <b>${TL.format(cost)}</b> · Bozdursan alacağın: <b>${TL.format(gv)}</b>${spread > 0 ? `<br>Bugünkü alış-satış farkı (makas): ${TL.format(spread)}. Altın yeni alındıysa görünen zararın büyük kısmı bu farktır; fiyat yükseldikçe kapanır.` : ''}`
+    : '';
   const mins = priceAge();
   $('aUpd').textContent = ageLabel();
   $('aUpd').classList.toggle('stale', mins === null || mins > 240);
@@ -290,7 +296,7 @@ function renderGold() {
     const v = h[t] * priceOf(t);
     return `<div class="it"><div class="ic">🟡</div><div class="t"><b>${GOLD[t][0]}</b><span>${N2.format(h[t])} ${GOLD[t][1]} × ${TL.format(priceOf(t))}</span></div><div class="a goldc">${TL.format(v)}</div></div>`;
   }).join('');
-  const tx = [...S.gold].sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts).map(g => `<div class="it"><div class="ic">${g.qty > 0 ? '⬇️' : '⬆️'}</div><div class="t"><b>${g.qty > 0 ? 'Alış' : 'Satış'}: ${N2.format(Math.abs(g.qty))} ${GOLD[g.type][1]} ${GOLD[g.type][0]}</b><span>${dShort(g.date)}${g.unit ? ` · birim ${TL.format(g.unit)}` : ''}</span></div><button class="del" data-gdel="${g.id}" aria-label="Sil">✕</button></div>`).join('');
+  const tx = [...S.gold].sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts).map(g => `<div class="it tap" data-gedit="${g.id}"><div class="ic">${g.qty > 0 ? '⬇️' : '⬆️'}</div><div class="t"><b>${g.qty > 0 ? 'Alış' : 'Satış'}: ${N2.format(Math.abs(g.qty))} ${GOLD[g.type][1]} ${GOLD[g.type][0]}</b><span>${dShort(g.date)}${g.unit ? ` · birim ${TL.format(g.unit)}` : ''}</span></div><button class="del" data-gdel="${g.id}" aria-label="Sil">✕</button></div>`).join('');
   $('aHold').innerHTML = rows ? rows + `<div class="small muted" style="margin:14px 0 4px">İşlemler</div>${tx}` : (tx || '<div class="empty">Altınlarını ekle; anlık değerini ve kâr/zararını takip edelim.</div>');
   const days = histDays.filter(d => S.hist[d].GRA);
   const has = days.length >= 2;
@@ -397,44 +403,125 @@ document.addEventListener('click', async ev => {
       setTimeout(() => { if (d.isConnected) { delete d.dataset.confirm; d.textContent = '✕'; d.style.color = ''; } }, 3000);
       return;
     }
-    if (d.dataset.del) { S.entries = S.entries.filter(e => e.id !== d.dataset.del); commit('Kayıt silindi'); }
-    else { S.gold = S.gold.filter(g => g.id !== d.dataset.gdel); commit('İşlem silindi'); }
+    if (d.dataset.del) deleteEntry(d.dataset.del); else deleteGold(d.dataset.gdel);
+    return;
   }
+  const ed = ev.target.closest('[data-edit]'); if (ed) { openEntryEdit(ed.dataset.edit); return; }
+  const ge = ev.target.closest('[data-gedit]'); if (ge) { openGoldEdit(ge.dataset.gedit); return; }
 });
 
-// Kayıt ekleme
-let eKind = 'save', eCat = 'yemek';
+// ---- Altın işlemi <-> bağlı nakit kaydı ----
+// Eski kayıtlarda bağlantı alanı yok: aynı gün, aynı tutarlı aktarım kaydını bağlı say.
+function findLinked(g) {
+  if (g.link) return S.entries.find(e => e.id === g.link) || null;
+  const cat = g.qty > 0 ? 'altin' : 'altinsatis', amt = Math.round(Math.abs(g.qty) * g.unit);
+  return S.entries.find(e => e.category === cat && e.date === g.date && !e.link && Math.abs(e.amount - amt) <= 1) || null;
+}
+function deleteEntry(id) {
+  const e = S.entries.find(x => x.id === id); if (!e) return;
+  S.entries = S.entries.filter(x => x.id !== id);
+  S.gold.forEach(g => { if (g.link === id) delete g.link; });
+  commit('Kayıt silindi');
+}
+function deleteGold(id) {
+  const g = S.gold.find(x => x.id === id); if (!g) return;
+  const L = findLinked(g);
+  S.gold = S.gold.filter(x => x.id !== id);
+  if (L) S.entries = S.entries.filter(x => x.id !== L.id);
+  commit(L ? 'İşlem ve bağlı TL kaydı silindi' : 'İşlem silindi');
+}
+
+// ---- Kayıt ekleme / düzenleme ----
+let eKind = 'save', eCat = 'yemek', editEntryId = null;
 function drawCats() {
-  const L = eKind === 'withdraw' ? WCATS : CATS; if (!L.find(c => c[0] === eCat)) eCat = L[0][0];
+  // Bağlantısı kopmuş eski bir altın aktarım kaydı düzenlenirken kendi kategorisi listede kalsın
+  const L = [...(eKind === 'withdraw' ? WCATS : CATS), ...XCATS.filter(c => c[0] === eCat)];
+  if (!L.find(c => c[0] === eCat)) eCat = L[0][0];
   $('eCat').innerHTML = L.map(c => `<button class="chip ${c[0] === eCat ? 'sel' : ''}" data-c="${c[0]}">${c[1]} ${c[2]}</button>`).join('');
 }
+const setSeg = (segId, key) => [...$(segId).children].forEach(x => x.classList.toggle('sel', x.dataset.k === key));
 $('eCat').onclick = ev => { const b = ev.target.closest('[data-c]'); if (b) { eCat = b.dataset.c; drawCats(); } };
-$('eKind').onclick = ev => { const b = ev.target.closest('button'); if (!b) return; eKind = b.dataset.k; [...$('eKind').children].forEach(x => x.classList.toggle('sel', x === b)); drawCats(); };
-$('fab').onclick = () => { $('eAmt').value = ''; $('eNote').value = ''; $('eDate').value = today(); $('eDate').max = today(); drawCats(); openSheet('sEntry'); setTimeout(() => $('eAmt').focus(), 260); };
+$('eKind').onclick = ev => { const b = ev.target.closest('button'); if (!b) return; eKind = b.dataset.k; setSeg('eKind', eKind); drawCats(); };
+function openEntrySheet(e) {
+  editEntryId = e ? e.id : null;
+  eKind = e ? e.kind : 'save'; eCat = e ? e.category : 'yemek'; setSeg('eKind', eKind);
+  $('eTitle').textContent = e ? 'Kaydı düzenle' : 'Yeni kayıt';
+  $('eSave').textContent = e ? 'Güncelle' : 'Kaydet';
+  $('eDelete').style.display = e ? '' : 'none'; delete $('eDelete').dataset.confirm; $('eDelete').textContent = 'Bu kaydı sil';
+  $('eAmt').value = e ? String(e.amount).replace('.', ',') : ''; $('eNote').value = e ? e.note : '';
+  $('eDate').value = e ? e.date : today(); $('eDate').max = today();
+  drawCats(); openSheet('sEntry'); if (!e) setTimeout(() => $('eAmt').focus(), 260);
+}
+function openEntryEdit(id) {
+  const e = S.entries.find(x => x.id === id); if (!e) return;
+  if (TRANSFER.has(e.category)) {
+    const g = S.gold.find(x => x.link === id) || S.gold.find(x => findLinked(x)?.id === id);
+    if (g) { openGoldEdit(g.id); toast('Bu kayıt bir altın işlemine bağlı; oradan düzenleniyor'); return; }
+  }
+  openEntrySheet(e);
+}
+$('fab').onclick = () => openEntrySheet(null);
 $('eSave').onclick = () => {
   const amt = parseNum($('eAmt').value); if (!(amt > 0)) { toast('Geçerli bir tutar gir'); return; }
-  addEntry({ kind: eKind, amount: amt, category: eCat, note: $('eNote').value.trim().slice(0, 120), date: $('eDate').value || today() });
+  const data = { kind: eKind, amount: amt, category: eCat, note: $('eNote').value.trim().slice(0, 120), date: $('eDate').value || today() };
+  if (editEntryId) {
+    const e = S.entries.find(x => x.id === editEntryId);
+    if (e) { Object.assign(e, data); commit('Kayıt güncellendi ✓'); }
+  } else addEntry(data);
   closeSheets();
 };
+$('eDelete').onclick = () => {
+  const b = $('eDelete');
+  if (!b.dataset.confirm) { b.dataset.confirm = 1; b.textContent = 'Emin misin? Tekrar bas'; return; }
+  deleteEntry(editEntryId); closeSheets();
+};
 
-// Altın işlemi
-let gKind = 'buy';
+// ---- Altın işlemi ekleme / düzenleme ----
+let gKind = 'buy', editGoldId = null;
 $('gType').innerHTML = Object.entries(GOLD).map(([k, v]) => `<option value="${k}">${v[0]} (${v[1]})</option>`).join('');
 const gLabels = () => { $('gQtyL').textContent = `Miktar (${GOLD[$('gType').value][1]})`; $('gLinkL').textContent = gKind === 'buy' ? 'Bu tutarı TL birikimimden düş' : 'Satıştan geleni TL birikimime ekle'; };
 $('gType').onchange = gLabels;
-$('gKind').onclick = ev => { const b = ev.target.closest('button'); if (!b) return; gKind = b.dataset.k; [...$('gKind').children].forEach(x => x.classList.toggle('sel', x === b)); gLabels(); };
-$('btnAddGold').onclick = () => { $('gQty').value = ''; $('gPrice').value = ''; $('gDate').value = today(); $('gDate').max = today(); $('gLink').checked = false; gLabels(); openSheet('sGold'); };
+$('gKind').onclick = ev => { const b = ev.target.closest('button'); if (!b) return; gKind = b.dataset.k; setSeg('gKind', gKind); gLabels(); };
+function openGoldSheet(g) {
+  editGoldId = g ? g.id : null;
+  gKind = g && g.qty < 0 ? 'sell' : 'buy'; setSeg('gKind', gKind);
+  $('gTitle').textContent = g ? 'Altın işlemini düzenle' : 'Altın işlemi';
+  $('gSave').textContent = g ? 'Güncelle' : 'Kaydet';
+  $('gDelete').style.display = g ? '' : 'none'; delete $('gDelete').dataset.confirm; $('gDelete').textContent = 'Bu işlemi sil';
+  $('gType').value = g ? g.type : 'GRA';
+  $('gQty').value = g ? String(Math.abs(g.qty)).replace('.', ',') : '';
+  $('gPrice').value = g && g.unit ? String(g.unit).replace('.', ',') : '';
+  $('gDate').value = g ? g.date : today(); $('gDate').max = today();
+  $('gLink').checked = g ? !!findLinked(g) : false;
+  gLabels(); openSheet('sGold');
+}
+function openGoldEdit(id) { const g = S.gold.find(x => x.id === id); if (g) openGoldSheet(g); }
+$('btnAddGold').onclick = () => openGoldSheet(null);
 $('gSave').onclick = () => {
   const qty = parseNum($('gQty').value); if (!(qty > 0)) { toast('Geçerli bir miktar gir'); return; }
   const t = $('gType').value, date = $('gDate').value || today();
   let unit = parseNum($('gPrice').value);
   if (!(unit > 0)) unit = (gKind === 'buy' ? S.prices?.items?.[t]?.sell : S.prices?.items?.[t]?.buy) || 0;
-  if (gKind === 'sell' && qty > (holdings()[t] || 0) + 1e-9) { toast('Elindekinden fazla satamazsın'); return; }
-  S.gold.push({ id: uid(), type: t, qty: gKind === 'buy' ? qty : -qty, unit, date, ts: Date.now() });
-  if ($('gLink').checked && unit > 0) {
-    S.entries.push({ id: uid(), ts: Date.now(), kind: gKind === 'buy' ? 'withdraw' : 'save', amount: Math.round(qty * unit), category: gKind === 'buy' ? 'altin' : 'altinsatis', note: `${GOLD[t][0]} ${gKind === 'buy' ? 'alımı' : 'satışı'} (${N2.format(qty)} ${GOLD[t][1]})`, date });
-  }
-  commit('Altın işlemi kaydedildi 🪙'); closeSheets();
+  const old = editGoldId ? S.gold.find(x => x.id === editGoldId) : null;
+  // Satışta: bu işlem hariç eldeki miktar yeterli mi?
+  const have = (holdings()[t] || 0) - (old && old.type === t ? old.qty : 0);
+  if (gKind === 'sell' && qty > have + 1e-9) { toast(`Elinde yalnızca ${N2.format(Math.max(0, have))} ${GOLD[t][1]} var`); return; }
+  const linked = old ? findLinked(old) : null;
+  const g = old || { id: uid(), ts: Date.now() };
+  Object.assign(g, { type: t, qty: gKind === 'buy' ? qty : -qty, unit, date });
+  if (!old) S.gold.push(g);
+  // Bağlı nakit kaydı: oluştur, güncelle ya da kaldır
+  const want = $('gLink').checked && unit > 0;
+  const entryData = { kind: gKind === 'buy' ? 'withdraw' : 'save', amount: Math.round(qty * unit), category: gKind === 'buy' ? 'altin' : 'altinsatis', note: `${GOLD[t][0]} ${gKind === 'buy' ? 'alımı' : 'satışı'} (${N2.format(qty)} ${GOLD[t][1]})`, date, link: g.id };
+  if (want && linked) { Object.assign(linked, entryData); g.link = linked.id; }
+  else if (want) { const e = { id: uid(), ts: Date.now(), ...entryData }; S.entries.push(e); g.link = e.id; }
+  else { if (linked) S.entries = S.entries.filter(x => x.id !== linked.id); delete g.link; }
+  commit(old ? 'Altın işlemi güncellendi ✓' : 'Altın işlemi kaydedildi 🪙'); closeSheets();
+};
+$('gDelete').onclick = () => {
+  const b = $('gDelete');
+  if (!b.dataset.confirm) { b.dataset.confirm = 1; b.textContent = 'Emin misin? Tekrar bas'; return; }
+  deleteGold(editGoldId); closeSheets();
 };
 
 // Aylık hedef
