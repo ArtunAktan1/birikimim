@@ -28,12 +28,14 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString
 const CATS = [
   ['yemek', '☕', 'Yemek & kahve'], ['ulasim', '🚌', 'Ulaşım'], ['alisveris', '🛍️', 'Alışveriş'],
   ['eglence', '🎮', 'Eğlence'], ['abonelik', '📱', 'Abonelik'], ['duzenli', '🏦', 'Düzenli birikim'],
-  ['gelir', '💼', 'Ek gelir'], ['diger', '✨', 'Diğer']
+  ['gelir', '💼', 'Ek gelir'], ['diger', '✨', 'Diğer'], ['baslangic', '🏁', 'Mevcut birikim (başlangıç)']
 ];
 const WCATS = [['harcama', '💸', 'Harcama'], ['acil', '🚑', 'Acil durum'], ['diger', '✨', 'Diğer']];
 // Nakit <-> altın aktarımları: toplam nakdi değiştirir ama aylık hedefi/aylık birikimi etkilemez.
 const XCATS = [['altin', '🪙', 'Altın alımı'], ['altinsatis', '🪙', 'Altın satışı']];
 const TRANSFER = new Set(['altin', 'altinsatis']);
+// İstatistik dışı: aktarımlar ve uygulamaya başlarken girilen mevcut birikim (toplama dahil, grafiklere/aylık hesaba değil)
+const EXCL = new Set([...TRANSFER, 'baslangic']);
 const catInfo = (k, kind) => (kind === 'withdraw' ? WCATS : CATS).find(c => c[0] === k)
   || CATS.concat(WCATS, XCATS).find(c => c[0] === k) || ['diger', '✨', 'Diğer'];
 
@@ -117,7 +119,7 @@ function goldCost() {
   return Object.values(per).reduce((a, p) => a + p.c, 0);
 }
 // Aylık/haftalık "gerçek birikim": aktarımlar hariç
-const sumRange = (from, to) => S.entries.reduce((a, e) => a + (e.date >= from && e.date <= to && !TRANSFER.has(e.category) ? signed(e) : 0), 0);
+const sumRange = (from, to) => S.entries.reduce((a, e) => a + (e.date >= from && e.date <= to && !EXCL.has(e.category) ? signed(e) : 0), 0);
 function monthNet(m) { return sumRange(m + '-01', m + '-31'); }
 const monthOnly = m => new Date(m + '-15T12:00:00').toLocaleDateString('tr-TR', { month: 'long' });
 function prevMonth(m) { const [y, mo] = m.split('-').map(Number); return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, '0')}`; }
@@ -132,7 +134,7 @@ function monthlyPace() {
   return { cur, pace: cur, n: 0, basis: 'current' };
 }
 function monthGoal(m) { return S.monthGoals[m] ?? S.settings.monthlyGoal ?? 0; }
-const saveDates = () => [...new Set(S.entries.filter(e => e.kind !== 'withdraw' && !TRANSFER.has(e.category)).map(e => e.date))].sort();
+const saveDates = () => [...new Set(S.entries.filter(e => e.kind !== 'withdraw' && !EXCL.has(e.category)).map(e => e.date))].sort();
 function streaks() {
   const dates = saveDates(), set = new Set(dates); let cur = 0, d = today();
   if (!set.has(d)) d = addDays(d, -1);
@@ -321,10 +323,15 @@ function renderGold() {
   const tx = [...S.gold].sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts).map(g => `<div class="it tap" data-gedit="${g.id}"><div class="ic">${g.qty > 0 ? '⬇️' : '⬆️'}</div><div class="t"><b>${g.qty > 0 ? 'Alış' : 'Satış'}: ${N2.format(Math.abs(g.qty))} ${GOLD[g.type][1]} ${GOLD[g.type][0]}</b><span>${dShort(g.date)}${g.unit ? ` · birim ${TL.format(g.unit)}` : ''}</span></div><button class="del" data-gdel="${g.id}" aria-label="Sil">✕</button></div>`).join('');
   $('aHold').innerHTML = rows ? rows + `<div class="small muted" style="margin:14px 0 4px">İşlemler</div>${tx}` : (tx || '<div class="empty">Altınlarını ekle; anlık değerini ve kâr/zararını takip edelim.</div>');
   const days = histDays.filter(d => S.hist[d].GRA);
-  const has = days.length >= 2;
-  $('cGoldPriceEmpty').style.display = has ? 'none' : 'block';
+  const has = days.length >= 1;
+  $('cGoldPriceEmpty').style.display = days.length >= 2 ? 'none' : 'block';
   $('cGoldPriceW').style.display = has ? '' : 'none';
-  if (has) mkChart('cGoldPrice', { type: 'line', data: { labels: days.map(dShort), datasets: [{ data: days.map(d => S.hist[d].GRA), borderColor: '#f5c542', backgroundColor: 'rgba(245,197,66,.12)', fill: true, tension: .3, pointRadius: 0 }] }, options: baseOpts() });
+  // Çizgi + her günün üstünde içi boş sarı nokta
+  if (has) mkChart('cGoldPrice', { type: 'line', data: { labels: days.map(dShort), datasets: [{ label: 'Gram altın', data: days.map(d => S.hist[d].GRA),
+    borderColor: '#f5c542', borderWidth: 2, fill: false, tension: .25,
+    pointRadius: 5, pointHoverRadius: 7, pointBorderWidth: 2, pointBackgroundColor: '#181b22', pointBorderColor: '#f5c542', pointHoverBackgroundColor: '#f5c542' }] },
+    options: baseOpts({ plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { title: c => dLong(days[c[0].dataIndex]), label: c => 'Gram altın: ' + TL2.format(c.parsed.y) } } },
+      scales: { x: axisX, y: { grid: { color: '#232833' }, ticks: { color: '#8b93a3', font: { size: 10 }, callback: v => N2.format(v) } } } }) });
 }
 
 const axisY = (stacked) => ({ stacked, grid: { color: '#232833' }, ticks: { color: '#8b93a3', font: { size: 10 }, callback: v => COMPACT.format(v) } });
@@ -338,63 +345,192 @@ function baseOpts(extra = {}) {
 }
 function mkChart(id, cfg) { if (!window.Chart) return; charts[id]?.destroy(); charts[id] = new Chart($(id), cfg); }
 
+// ================= İstatistik =================
+let statTab = 'genel', sumMonth = null, heatDay = null;
+const lastDayOf = m => `${m}-${String(daysInMonth(m)).padStart(2, '0')}`;
+const isStat = e => !EXCL.has(e.category);
+const PAL = ['#34d399', '#f5c542', '#60a5fa', '#a78bfa', '#f87171', '#fb923c', '#2dd4bf', '#e879f9'];
+const capTr = s => s.charAt(0).toLocaleUpperCase('tr-TR') + s.slice(1);
+
+function catBars(list) {
+  // list: [{k, amount, count}] -> yatay çubuklar (büyük tek kayıt diğerlerini görünmez yapmaz)
+  const total = list.reduce((a, x) => a + x.amount, 0);
+  if (!total) return '<div class="empty small">Henüz birikim kaydı yok.</div>';
+  const max = Math.max(...list.map(x => x.amount));
+  return list.map((x, i) => {
+    const c = catInfo(x.k);
+    return `<div class="catrow"><div class="top"><span>${c[1]} ${c[2]} <span class="muted small">· ${x.count} kayıt</span></span><b>${TL.format(x.amount)} <span class="muted small">%${Math.round(x.amount / total * 100)}</span></b></div>
+      <div class="bar"><div style="width:${Math.max(2, x.amount / max * 100)}%;background:${PAL[i % PAL.length]}"></div></div></div>`;
+  }).join('');
+}
+function catTotals(entries) {
+  const m = {};
+  entries.filter(e => e.kind !== 'withdraw' && isStat(e)).forEach(e => { const x = m[e.category] || (m[e.category] = { k: e.category, amount: 0, count: 0 }); x.amount += e.amount; x.count++; });
+  return Object.values(m).sort((a, b) => b.amount - a.amount);
+}
+
 function renderStats() {
+  document.querySelectorAll('#stTab button').forEach(b => b.classList.toggle('sel', b.dataset.k === statTab));
+  $('stGenel').style.display = statTab === 'genel' ? '' : 'none';
+  $('stAylik').style.display = statTab === 'aylik' ? '' : 'none';
+  if (statTab === 'aylik') { renderMonthly(); return; }
+
   const start = startDate(), t = today(), n = Math.max(0, daysBetween(start, t));
-  // Varlık zaman çizelgesi
-  const step = Math.max(1, Math.ceil(n / 90)), labels = [], cashS = [], goldS = [];
-  for (let i = 0; i <= n; i += step) { const d = addDays(start, i); labels.push(dShort(d)); cashS.push(cashTotal(d)); goldS.push(goldValue(d)); }
-  if (labels[labels.length - 1] !== dShort(t)) { labels.push(dShort(t)); cashS.push(cashTotal()); goldS.push(goldValue()); }
-  mkChart('cNet', { type: 'line', data: { labels, datasets: [
-    { label: 'Altın', data: goldS, borderColor: '#f5c542', backgroundColor: 'rgba(245,197,66,.25)', fill: 'origin', tension: .3, pointRadius: 0 },
-    { label: 'Nakit', data: cashS, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,.25)', fill: '-1', tension: .3, pointRadius: 0 }] },
-    options: baseOpts({ plugins: { legend: { display: true, labels: { color: '#8b93a3', boxWidth: 10 } }, tooltip: { mode: 'index', intersect: false, callbacks: { label: c => ` ${c.dataset.label}: ${TL.format(c.parsed.y)}` } } }, scales: { x: axisX, y: axisY(true) } }) });
-  // Aylık net + hedef çizgisi
+  // --- Varlık zaman içinde: toplam ve altın, ayrı çizgiler + noktalar ---
+  const step = Math.max(1, Math.ceil(n / 90)), days = [];
+  for (let i = 0; i <= n; i += step) days.push(addDays(start, i));
+  if (days[days.length - 1] !== t) days.push(t);
+  const totS = days.map(d => cashTotal(d) + goldValue(d)), goldS = days.map(d => goldValue(d));
+  const pts = days.length <= 45;
+  const line = (label, data, color) => ({ label, data, borderColor: color, borderWidth: 2, fill: false, tension: .25,
+    pointRadius: pts ? 4 : 0, pointHoverRadius: 6, pointBorderWidth: 2, pointBackgroundColor: '#181b22', pointBorderColor: color });
+  mkChart('cNet', { type: 'line', data: { labels: days.map(dShort), datasets: [line('Toplam varlık', totS, '#34d399'), line('Altın', goldS, '#f5c542')] },
+    options: baseOpts({ interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: true, labels: { color: '#8b93a3', boxWidth: 10 } }, tooltip: { callbacks: { title: c => dLong(days[c[0].dataIndex]), label: c => ` ${c.dataset.label}: ${TL.format(c.parsed.y)}` } } } }) });
+  const bas = S.entries.filter(e => e.category === 'baslangic').reduce((a, e) => a + e.amount, 0);
+  $('cNetNote').textContent = bas ? `Başlangıçta girdiğin ${TL.format(bas)} mevcut birikim toplam varlığa dahil; aylık hesaplara ve diğer grafiklere katılmaz.` : '';
+
+  // --- Aylık net birikim + hedef (yan yana çubuk) ---
   const months = monthsRange().slice(-12), nets = months.map(monthNet), goals = months.map(monthGoal);
   const anyGoal = goals.some(g => g > 0);
-  mkChart('cMonth', { data: { labels: months.map(monthShort), datasets: [
-    { type: 'bar', label: 'Net birikim', data: nets, backgroundColor: nets.map((v, i) => v < 0 ? '#f87171' : goals[i] && v >= goals[i] ? '#f5c542' : '#34d399'), borderRadius: 6, order: 2 },
-    ...(anyGoal ? [{ type: 'line', label: 'Hedef', data: goals.map(g => g || null), borderColor: '#eef0f4', borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, stepped: 'middle', order: 1 }] : [])] },
+  mkChart('cMonth', { type: 'bar', data: { labels: months.map(monthShort), datasets: [
+    { label: 'Net birikim', data: nets, backgroundColor: nets.map((v, i) => v < 0 ? '#f87171' : goals[i] && v >= goals[i] ? '#f5c542' : '#34d399'), borderRadius: 6, maxBarThickness: 46 },
+    ...(anyGoal ? [{ label: 'Hedef', data: goals.map(g => g || null), backgroundColor: 'rgba(238,240,244,.12)', borderColor: 'rgba(238,240,244,.45)', borderWidth: 1, borderRadius: 6, maxBarThickness: 46 }] : [])] },
     options: baseOpts({ plugins: { legend: { display: anyGoal, labels: { color: '#8b93a3', boxWidth: 10 } }, tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${TL.format(c.parsed.y)}` } } } }) });
-  // Kategoriler
-  const saves = S.entries.filter(e => e.kind !== 'withdraw' && !TRANSFER.has(e.category));
-  const cat = {}; saves.forEach(e => { cat[e.category] = (cat[e.category] || 0) + e.amount; });
-  const ck = Object.keys(cat).sort((a, b) => cat[b] - cat[a]);
-  mkChart('cCat', { type: 'doughnut', data: { labels: ck.map(k => catInfo(k)[1] + ' ' + catInfo(k)[2]), datasets: [{ data: ck.map(k => cat[k]), backgroundColor: ['#34d399', '#f5c542', '#60a5fa', '#a78bfa', '#f87171', '#fb923c', '#2dd4bf', '#e879f9'], borderWidth: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'right', labels: { color: '#c5cad4', boxWidth: 10, font: { size: 11 } } }, tooltip: { callbacks: { label: c => ' ' + TL.format(c.parsed) } } } } });
-  // Haftanın günleri
-  const dowN = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'], dw = Array(7).fill(0);
-  saves.forEach(e => { dw[(new Date(e.date + 'T12:00:00').getDay() + 6) % 7] += e.amount; });
-  mkChart('cDow', { type: 'bar', data: { labels: dowN, datasets: [{ data: dw, backgroundColor: '#60a5fa', borderRadius: 6 }] }, options: baseOpts() });
-  // Göstergeler
+
+  // --- Göstergeler ---
+  const statE = S.entries.filter(isStat), saves = statE.filter(e => e.kind !== 'withdraw');
   const { cur, best } = streaks(), amounts = saves.map(e => e.amount);
-  const totalSaved = amounts.reduce((a, b) => a + b, 0);
-  const withdrawn = S.entries.filter(e => e.kind === 'withdraw' && !TRANSFER.has(e.category)).reduce((a, e) => a + e.amount, 0);
+  const totalSaved = amounts.reduce((a, b) => a + b, 0), withdrawn = statE.filter(e => e.kind === 'withdraw').reduce((a, e) => a + e.amount, 0);
   const allM = monthsRange(), bestM = [...allM].sort((a, b) => monthNet(b) - monthNet(a))[0];
   const prevM = allM[allM.length - 2], ch = prevM && monthNet(prevM) ? (monthNet(thisMonth()) - monthNet(prevM)) / Math.abs(monthNet(prevM)) * 100 : null;
   const gv = goldValue(), tot = cashTotal() + gv, cost = goldCost(), gs = monthGoalStats();
-  const bestDow = totalSaved ? dowN[dw.indexOf(Math.max(...dw))] : '—';
   const K = [
     ['Toplam biriktirilen', TL.format(totalSaved), 'pos'], ['Toplam çekilen', TL.format(withdrawn), 'neg'],
     ['Kayıt sayısı', saves.length + ' kayıt'], ['Ortalama kayıt', amounts.length ? TL.format(totalSaved / amounts.length) : '—'],
-    ['En büyük tek kayıt', amounts.length ? TL.format(Math.max(...amounts)) : '—'], ['Günlük ortalama', TL.format((totalSaved - withdrawn) / (n + 1))],
+    ['En büyük tek kayıt', amounts.length ? TL.format(Math.max(...amounts)) : '—'], ['Aylık ortalama', monthlyPace().basis === 'avg' ? TL.format(monthlyPace().pace) : '—'],
     ['Mevcut seri', cur + ' gün'], ['En uzun seri', best + ' gün'],
     ['Aylık hedef başarısı', gs.total ? `${gs.hit}/${gs.total} ay` : '—', gs.total && gs.hit === gs.total ? 'pos' : ''], ['Üst üste tutturulan', gs.run + ' ay'],
     ['Aktif gün', saveDates().length + ' / ' + (n + 1)], ['Bu ay vs geçen ay', ch === null ? '—' : (ch >= 0 ? '▲ ' : '▼ ') + Math.abs(ch).toFixed(0) + '%', ch === null ? '' : ch >= 0 ? 'pos' : 'neg'],
-    ['En iyi ay', bestM && monthNet(bestM) > 0 ? monthName(bestM) : '—'], ['En verimli gün', bestDow],
-    ['Altın payı', tot ? (gv / tot * 100).toFixed(0) + '%' : '—', 'goldc'], ['Altın kâr/zarar', cost > 0 ? TL.format(gv - cost) : '—', gv - cost >= 0 ? 'pos' : 'neg'],
+    ['En iyi ay', bestM && monthNet(bestM) > 0 ? capTr(monthName(bestM)) : '—'], ['Altın payı', tot ? (gv / tot * 100).toFixed(0) + '%' : '—', 'goldc'],
+    ['Altın kâr/zarar', cost > 0 ? TL.format(gv - cost) : '—', gv - cost >= 0 ? 'pos' : 'neg'], ['Toplam varlık', TL.format(tot)],
   ];
   $('kpis').innerHTML = K.map(k => `<div class="stat"><div class="l">${k[0]}</div><div class="v ${k[2] || ''}">${k[1]}</div></div>`).join('');
-  // Isı haritası
-  const byDay = {}; saves.forEach(e => { byDay[e.date] = (byDay[e.date] || 0) + e.amount; });
-  const max = Math.max(1, ...Object.values(byDay)), weeks = 15;
-  const end = addDays(t, 6 - ((new Date().getDay() + 6) % 7)), first = addDays(end, -(weeks * 7 - 1));
-  let html = `<div style="display:grid;grid-template-columns:repeat(${weeks},1fr);grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px">`;
-  for (let i = 0; i < weeks * 7; i++) {
-    const d = addDays(first, i), v = byDay[d] || 0;
-    html += `<div title="${dLong(d)}: ${TL.format(v)}" style="aspect-ratio:1;border-radius:3px;background:${d > t ? 'transparent' : v ? `rgba(52,211,153,${0.25 + 0.75 * (v / max)})` : '#232833'}"></div>`;
-  }
-  $('heat').innerHTML = html + '</div><div class="small muted" style="margin-top:8px">Her kare bir gün; koyu yeşil = o gün daha çok biriktirdin.</div>';
+
+  // --- Kategoriler (yatay çubuk) ---
+  $('catList').innerHTML = catBars(catTotals(S.entries));
+
+  renderHeat();
 }
+
+// --- Aktivite tablosu: haftalar sütun, günler satır; dokununca o günün detayı ---
+function renderHeat() {
+  const t = today(), weeks = 15, dow = (new Date(t + 'T12:00:00').getDay() + 6) % 7;
+  const firstMon = addDays(addDays(t, -dow), -(weeks - 1) * 7);
+  const byDay = {};
+  S.entries.filter(e => e.kind !== 'withdraw' && isStat(e)).forEach(e => { byDay[e.date] = (byDay[e.date] || 0) + e.amount; });
+  // Seviyeler göreli değil, sıralamaya göre: tek büyük gün diğerlerini soldurmaz
+  const vals = Object.entries(byDay).filter(([d]) => d >= firstMon && d <= t).map(([, v]) => v).sort((a, b) => a - b);
+  const q = p => vals.length ? vals[Math.min(vals.length - 1, Math.floor(p * vals.length))] : 0;
+  const q1 = q(.25), q2 = q(.5), q3 = q(.75);
+  const lvl = v => !v ? '' : vals.length < 4 ? 'l3' : v <= q1 ? 'l1' : v <= q2 ? 'l2' : v <= q3 ? 'l3' : 'l4';
+  const DL = ['Pzt', '', 'Çar', '', 'Cum', '', 'Paz'];
+  let html = `<div class="hm" style="grid-template-columns:24px repeat(${weeks},1fr);grid-template-rows:12px repeat(7,auto)">`;
+  DL.forEach((l, r) => { html += `<div class="lab" style="grid-column:1;grid-row:${r + 2}">${l}</div>`; });
+  let lastMonth = '';
+  for (let w = 0; w < weeks; w++) {
+    const mon = addDays(firstMon, w * 7), m = mon.slice(0, 7);
+    if (m !== lastMonth && w < weeks - 1) { html += `<div class="lab" style="grid-column:${w + 2}/span ${Math.min(3, weeks - w)};grid-row:1">${new Date(mon + 'T12:00:00').toLocaleDateString('tr-TR', { month: 'short' })}</div>`; lastMonth = m; }
+    for (let r = 0; r < 7; r++) {
+      const d = addDays(mon, r), fut = d > t, v = byDay[d] || 0;
+      html += `<button class="c ${fut ? 'fut' : lvl(v)} ${d === t ? 'today' : ''} ${d === heatDay ? 'sel' : ''}" style="grid-column:${w + 2};grid-row:${r + 2}" ${fut ? 'disabled' : `data-day="${d}"`} aria-label="${dLong(d)}: ${TL.format(v)}"></button>`;
+    }
+  }
+  html += '</div><div class="legend">Az <i style="background:#232833"></i><i style="background:rgba(52,211,153,.3)"></i><i style="background:rgba(52,211,153,.5)"></i><i style="background:rgba(52,211,153,.75)"></i><i style="background:#34d399"></i> Çok</div>';
+  $('heat').innerHTML = html;
+  renderHeatDetail();
+}
+function renderHeatDetail() {
+  if (!heatDay) { $('heatDetail').innerHTML = '<span class="muted">Bir güne dokun, o günün kayıtlarını gör.</span>'; return; }
+  const list = S.entries.filter(e => e.date === heatDay);
+  const sum = list.filter(isStat).reduce((a, e) => a + signed(e), 0);
+  const name = new Date(heatDay + 'T12:00:00').toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
+  $('heatDetail').innerHTML = `<div class="row between"><b>${name}</b><b class="${sum >= 0 ? 'pos' : 'neg'}">${sum >= 0 ? '+' : ''}${TL.format(sum)}</b></div>
+    <div class="list">${entryList(list) || '<div class="empty small">Bu gün kayıt yok.</div>'}</div>`;
+}
+
+// --- Aylık özet ---
+function renderMonthly() {
+  const first = startDate().slice(0, 7), cur = thisMonth();
+  if (!sumMonth || sumMonth > cur) sumMonth = cur;
+  if (sumMonth < first) sumMonth = first;
+  const m = sumMonth, from = m + '-01', end = m < cur ? lastDayOf(m) : today(), prevEnd = addDays(from, -1);
+  $('mLabel').textContent = capTr(monthName(m));
+  $('mSub').textContent = m === cur ? `${Number(today().slice(8))}. gün · ay devam ediyor` : 'tamamlandı';
+  $('mPrev').disabled = m <= first; $('mNext').disabled = m >= cur;
+  $('mPrev').style.opacity = m <= first ? .35 : 1; $('mNext').style.opacity = m >= cur ? .35 : 1;
+
+  const inM = S.entries.filter(e => e.date >= from && e.date <= end);
+  const st = inM.filter(isStat), sv = st.filter(e => e.kind !== 'withdraw'), wd = st.filter(e => e.kind === 'withdraw');
+  const saved = sv.reduce((a, e) => a + e.amount, 0), spent = wd.reduce((a, e) => a + e.amount, 0), net = saved - spent;
+  const bas = inM.filter(e => e.category === 'baslangic').reduce((a, e) => a + signed(e), 0);
+  const goal = monthGoal(m), pm = prevMonth(m), pNet = pm >= first ? monthNet(pm) : null;
+  const byDay = {}; sv.forEach(e => { byDay[e.date] = (byDay[e.date] || 0) + e.amount; });
+  const bestDay = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0];
+  const biggest = [...sv].sort((a, b) => b.amount - a.amount)[0];
+  const fm = v => `<b class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : '−'}${TL.format(Math.abs(v))}</b>`;
+
+  // Altın: ay başı/sonu değeri, alım-satım, fiyat etkisi (kâr/zarar)
+  const g0 = goldValue(prevEnd), g1 = goldValue(end);
+  const gTx = S.gold.filter(g => g.date >= from && g.date <= end);
+  const buyCost = gTx.filter(g => g.qty > 0).reduce((a, g) => a + g.qty * (g.unit || priceOf(g.type, g.date)), 0);
+  const sellGet = gTx.filter(g => g.qty < 0).reduce((a, g) => a + -g.qty * (g.unit || priceOf(g.type, g.date)), 0);
+  const goldPL = g1 - g0 - buyCost + sellGet;
+  // Gram altın: ay başındaki (yoksa ay içindeki ilk) kayıtlı fiyat → ay sonu/bugün
+  const gDays = histDays.filter(d => S.hist[d].GRA);
+  const d0 = [...gDays].reverse().find(d => d <= prevEnd) || gDays.find(d => d >= from && d <= end);
+  const p0 = d0 ? S.hist[d0].GRA : null, p1 = priceOf('GRA', end);
+  const hasGold = g0 > 0 || g1 > 0 || gTx.length;
+  // Toplam varlık değişimi ve kaynakları
+  const t0 = cashTotal(prevEnd) + g0, t1 = cashTotal(end) + g1, dT = t1 - t0;
+  const other = dT - net - bas - goldPL;
+
+  const card = (title, body) => `<div class="card"><h3>${title}</h3>${body}</div>`;
+  const kv = (k, v) => `<div class="kv"><span>${k}</span>${v}</div>`;
+  let html = '';
+  // Hero
+  const gPct = goal ? Math.min(100, Math.max(0, net / goal * 100)) : 0;
+  html += `<div class="card hero"><div class="small muted">Bu ayın net birikimi</div><div class="big ${net >= 0 ? '' : 'neg'}">${net >= 0 ? '' : '−'}${TL.format(Math.abs(net))}</div>
+    ${goal ? `<div class="bar ${net >= goal ? 'done' : ''}"><div style="width:${gPct}%"></div></div><div class="mrow"><span>Hedef ${TL.format(goal)}</span><b>${net >= goal ? '🎯 Tuttu' : Math.floor(gPct) + '%'}</b></div>` : '<div class="small muted" style="margin-top:6px">Bu ay için hedef yok</div>'}
+    ${pNet !== null ? `<div class="small muted" style="margin-top:8px">Geçen ay (${monthOnly(pm)}): ${TL.format(pNet)} · ${pNet ? (net >= pNet ? '▲ ' : '▼ ') + Math.abs((net - pNet) / Math.abs(pNet) * 100).toFixed(0) + '%' : ''}</div>` : ''}</div>`;
+  // Birikim
+  html += card('Birikim', kv('Biriktirilen', fm(saved)) + kv('Çekilen / harcanan', spent ? fm(-spent) : '<b>—</b>') + kv('Net', fm(net))
+    + (bas ? kv('Başlangıç olarak eklenen', `<b>${TL.format(bas)}</b>`) : '')
+    + kv('Kayıt sayısı', `<b>${sv.length}</b>`) + kv('Aktif gün', `<b>${Object.keys(byDay).length} / ${daysBetween(from > startDate() ? from : startDate(), end) + 1}</b>`)
+    + kv('En iyi gün', bestDay ? `<b>${dShort(bestDay[0])} · ${TL.format(bestDay[1])}</b>` : '<b>—</b>')
+    + kv('En büyük kayıt', biggest ? `<b>${esc(biggest.note || catInfo(biggest.category)[2])} · ${TL.format(biggest.amount)}</b>` : '<b>—</b>'));
+  // Altın
+  if (hasGold) {
+    const gl = gTx.map(g => `${g.qty > 0 ? 'Alış' : 'Satış'}: ${N2.format(Math.abs(g.qty))} ${GOLD[g.type][1]} ${GOLD[g.type][0]} (${dShort(g.date)})`).join('<br>');
+    html += card('Altın', kv('Ay başı değeri', `<b>${TL.format(g0)}</b>`) + kv(m === cur ? 'Bugünkü değeri' : 'Ay sonu değeri', `<b>${TL.format(g1)}</b>`)
+      + (buyCost ? kv('Bu ay alınan', `<b>${TL.format(buyCost)}</b>`) : '') + (sellGet ? kv('Bu ay satılan', `<b>${TL.format(sellGet)}</b>`) : '')
+      + kv('Altın kâr / zarar (fiyat etkisi)', fm(goldPL))
+      + (p0 ? kv(`Gram altın (${d0 <= prevEnd ? 'ay başı' : dShort(d0)} → ${m === cur ? 'bugün' : 'ay sonu'})`, `<b>${TL2.format(p0)} → ${TL2.format(p1)} <span class="${p1 >= p0 ? 'pos' : 'neg'}">${p1 >= p0 ? '▲' : '▼'}%${Math.abs((p1 - p0) / p0 * 100).toFixed(1)}</span></b>`) : '')
+      + (gl ? `<div class="small muted" style="margin-top:8px;line-height:1.6">${gl}</div>` : '')
+      + `<div class="small muted" style="margin-top:8px">Kâr/zarar = değerdeki değişim − bu ayki alımlar + satışlar. Değer bozdurma fiyatıyla hesaplanır; alış-satış farkı (makas) dahildir.</div>`);
+  }
+  // Toplam varlık
+  html += card('Toplam varlık', kv('Ay başı', `<b>${TL.format(t0)}</b>`) + kv(m === cur ? 'Bugün' : 'Ay sonu', `<b>${TL.format(t1)}</b>`) + kv('Değişim', fm(dT))
+    + `<div class="small muted" style="margin-top:8px;line-height:1.6">Değişimin kaynağı: net birikim ${TL.format(net)}${bas ? ` · başlangıç ${TL.format(bas)}` : ''}${hasGold ? ` · altın fiyat etkisi ${TL.format(goldPL)}` : ''}${Math.abs(other) > 1 ? ` · diğer ${TL.format(other)} (TL birikimine bağlanmadan eklenen altın vb.)` : ''}</div>`);
+  // Kategoriler
+  html += card('Kategoriler', catBars(catTotals(inM)));
+  $('mSummary').innerHTML = html;
+}
+
+$('stTab').onclick = ev => { const b = ev.target.closest('button'); if (!b) return; statTab = b.dataset.k; renderStats(); };
+$('mPrev').onclick = () => { sumMonth = prevMonth(sumMonth); renderMonthly(); };
+$('mNext').onclick = () => { sumMonth = addMonths(sumMonth, 1); renderMonthly(); };
+$('heat').addEventListener('click', ev => { const c = ev.target.closest('[data-day]'); if (!c) return; heatDay = heatDay === c.dataset.day ? null : c.dataset.day; renderHeat(); });
 
 let gFilter = 'all';
 function renderHistory() {

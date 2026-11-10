@@ -106,6 +106,22 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
 .filter{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px}
 .filter .chip{white-space:nowrap;padding:7px 11px;font-size:12px}
 .cw{position:relative}
+.hm{display:grid;gap:3px;align-items:center}
+.hm .c{aspect-ratio:1;border-radius:3px;background:#232833;border:0;padding:0;cursor:pointer}
+.hm .c.l1{background:rgba(52,211,153,.3)} .hm .c.l2{background:rgba(52,211,153,.5)} .hm .c.l3{background:rgba(52,211,153,.75)} .hm .c.l4{background:#34d399}
+.hm .c.fut{background:transparent;cursor:default}
+.hm .c.today{outline:1.5px solid var(--text);outline-offset:1px}
+.hm .c.sel{outline:2px solid var(--gold);outline-offset:1px}
+.hm .lab{font-size:9px;color:var(--muted);white-space:nowrap;overflow:visible}
+.legend{display:flex;gap:4px;align-items:center;font-size:10px;color:var(--muted);margin-top:8px;justify-content:flex-end}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.catrow{margin:10px 0}
+.catrow .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+.catrow .bar{margin:0;height:8px}
+.kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--muted)}
+.kv b{font-weight:700}
 .dialog{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:30;padding:20px}
 .dialog .box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;max-width:360px;width:100%}
 .dialog .box p{margin:0 0 6px;line-height:1.45}
@@ -201,12 +217,22 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
 
   <!-- İSTATİSTİK -->
   <section class="view" id="v-istatistik">
-    <div class="card"><h3>Varlık zaman çizelgesi</h3><div class="cw" style="height:210px"><canvas id="cNet"></canvas></div></div>
-    <div class="card"><h3>Aylık net birikim ve hedef</h3><div class="cw" style="height:200px"><canvas id="cMonth"></canvas></div></div>
-    <div class="grid2" id="kpis"></div>
-    <div class="card" style="margin-top:12px"><h3>Kategoriye göre tasarruf</h3><div class="cw" style="height:220px"><canvas id="cCat"></canvas></div></div>
-    <div class="card"><h3>Haftanın günlerine göre</h3><div class="cw" style="height:170px"><canvas id="cDow"></canvas></div></div>
-    <div class="card"><h3>Aktivite (son 15 hafta)</h3><div id="heat"></div></div>
+    <div class="seg" id="stTab" style="margin-bottom:12px"><button data-k="genel" class="sel">📊 Genel</button><button data-k="aylik">🗓️ Aylık özet</button></div>
+    <div id="stGenel">
+      <div class="card"><h3>Varlığım zaman içinde</h3><div class="cw" style="height:210px"><canvas id="cNet"></canvas></div><div class="small muted" id="cNetNote" style="margin-top:6px"></div></div>
+      <div class="card"><h3>Aylık net birikim ve hedef</h3><div class="cw" style="height:200px"><canvas id="cMonth"></canvas></div></div>
+      <div class="grid2" id="kpis"></div>
+      <div class="card" style="margin-top:12px"><h3>Kategoriye göre birikim</h3><div id="catList"></div></div>
+      <div class="card"><h3>Aktivite (son 15 hafta)</h3><div id="heat"></div><div id="heatDetail" class="small" style="margin-top:10px"></div></div>
+    </div>
+    <div id="stAylik" style="display:none">
+      <div class="card row between" style="padding:10px 12px">
+        <button class="iconbtn" id="mPrev" aria-label="Önceki ay">‹</button>
+        <div style="text-align:center"><div style="font-weight:800;font-size:17px" id="mLabel"></div><div class="small muted" id="mSub"></div></div>
+        <button class="iconbtn" id="mNext" aria-label="Sonraki ay">›</button>
+      </div>
+      <div id="mSummary"></div>
+    </div>
   </section>
 
   <!-- GEÇMİŞ -->
