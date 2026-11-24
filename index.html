@@ -66,7 +66,7 @@ header .sub{color:var(--muted);font-size:12px;margin-top:2px}
 .list .a{font-weight:700;text-align:right;white-space:nowrap}
 .del{background:none;border:0;color:var(--muted);font-size:15px;cursor:pointer;padding:4px 6px;font-family:inherit}
 nav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,17,21,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:10}
-nav .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1fr 64px 1.5fr 1.5fr;align-items:center}
+nav .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 70px 1fr 1fr;align-items:center}
 nav a{color:var(--muted);text-decoration:none;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:600}
 nav a .e{font-size:20px;filter:grayscale(1);opacity:.7}
 nav a.act{color:var(--text)} nav a.act .e{filter:none;opacity:1}
@@ -263,10 +263,9 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
 <nav><div class="in">
   <a href="#ozet" data-v="ozet"><span class="e">🏠</span>Özet</a>
   <a href="#altin" data-v="altin"><span class="e">🪙</span>Altın</a>
-  <a href="#doviz" data-v="doviz"><span class="e">💵</span>Döviz</a>
   <button class="fab" id="fab" aria-label="Kayıt ekle">+</button>
+  <a href="#doviz" data-v="doviz"><span class="e">💵</span>Döviz</a>
   <a href="#istatistik" data-v="istatistik"><span class="e">📊</span>İstatistik</a>
-  <a href="#gecmis" data-v="gecmis"><span class="e">📜</span>Geçmiş</a>
 </div></nav>
 
 <div class="sheetbg" id="sheetbg"></div>
@@ -327,6 +326,9 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
   <input type="date" id="sDate">
   <div class="check"><input type="checkbox" id="sIncGold" checked><span>Altın ve döviz değerini hedefe dahil et</span></div>
   <button class="btn" id="sSave">Kaydet</button>
+
+  <h4>Kayıtlar</h4>
+  <button class="btn ghost" id="sHistory">📜 Geçmiş (tüm kayıtlar)</button>
 
   <h4>Yedek</h4>
   <div class="small muted" id="sBackupInfo"></div>

@@ -733,6 +733,7 @@ async function backup() {
   toast('Yedek hazır ☁️');
 }
 $('sBackup').onclick = backup;
+$('sHistory').onclick = () => { closeSheets(); location.hash = '#gecmis'; };
 $('sRestore').onclick = () => $('sRestoreFile').click();
 $('sRestoreFile').onchange = async ev => {
   const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
