@@ -47,9 +47,36 @@ header .sub{color:var(--muted);font-size:12px;margin-top:2px}
 .bar{height:12px;background:#0b0d11;border-radius:99px;overflow:hidden;margin:10px 0 8px}
 .bar>div{height:100%;background:linear-gradient(90deg,var(--green2),var(--green));border-radius:99px;transition:width .8s}
 .bar.done>div{background:linear-gradient(90deg,var(--green),var(--gold))}
-.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.badge{font-size:12px;padding:6px 10px;border-radius:99px;background:var(--card2);border:1px solid var(--line);color:var(--muted)}
-.badge.on{background:#2b2512;border-color:#5a4a17;color:var(--gold)}
+/* Hedefe yaklaştıkça: halka ve çubuk renklenir, parlar, en sonda gökkuşağı */
+.ring svg{transition:filter .6s}
+.ring[data-tier="1"] svg{filter:drop-shadow(0 0 4px rgba(96,165,250,.45))}
+.ring[data-tier="2"] svg{filter:drop-shadow(0 0 7px rgba(167,139,250,.55))}
+.ring[data-tier="3"] svg{animation:glow 2s ease-in-out infinite}
+.ring[data-tier="4"] svg{animation:rainbow 3s linear infinite}
+.ring[data-tier="3"] .pct,.ring[data-tier="4"] .pct{color:var(--gold);text-shadow:0 0 12px rgba(245,197,66,.6)}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 4px rgba(245,197,66,.45))}50%{filter:drop-shadow(0 0 16px rgba(251,146,60,.95))}}
+@keyframes rainbow{from{filter:hue-rotate(0) drop-shadow(0 0 12px rgba(245,197,66,.9))}to{filter:hue-rotate(360deg) drop-shadow(0 0 12px rgba(245,197,66,.9))}}
+.bar[data-tier="1"]>div{background:linear-gradient(90deg,#10b981,#60a5fa)}
+.bar[data-tier="2"]>div{background:linear-gradient(90deg,#60a5fa,#a78bfa,#f5c542)}
+.bar[data-tier="3"]>div{background:linear-gradient(90deg,#a78bfa,#f5c542,#fb923c,#a78bfa);background-size:200% 100%;animation:shimmer 2.5s linear infinite;box-shadow:0 0 10px rgba(245,197,66,.55)}
+.bar[data-tier="4"]>div{background:linear-gradient(90deg,#34d399,#60a5fa,#a78bfa,#e879f9,#f5c542,#34d399);background-size:300% 100%;animation:shimmer 2s linear infinite;box-shadow:0 0 14px rgba(232,121,249,.65)}
+@keyframes shimmer{to{background-position:-200% 0}}
+/* Madalyalar: her basamak daha büyük ve daha değerli (bronz → gümüş → altın → platin → elmas taç) */
+.medals{display:flex;align-items:flex-end;justify-content:space-between;gap:6px;margin-top:16px}
+.medal{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--muted)}
+.medal .m{width:var(--s);height:var(--s);display:flex;align-items:center;justify-content:center;font-size:calc(var(--s) * .52);background:#2a2f3a;filter:grayscale(1);opacity:.4;transition:all .5s}
+.medal.on .m{filter:none;opacity:1}
+.medal.on{color:var(--text)}
+.medal.m0 .m{border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0b27a,#a0522d 70%)}
+.medal.m1 .m{border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffffff,#9ca3af 70%);box-shadow:inset 0 0 0 3px #d1d5db}
+.medal.m2 .m{border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3b0,#d4a017 70%);box-shadow:inset 0 0 0 3px #f5c542,inset 0 0 0 6px #b8860b}
+.medal.m3 .m{clip-path:polygon(50% 0,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);background:linear-gradient(135deg,#f8fafc,#a5b4fc 45%,#e0e7ff 60%,#818cf8)}
+.medal.m4 .m{clip-path:polygon(50% 0,63% 32%,98% 35%,71% 57%,80% 93%,50% 73%,20% 93%,29% 57%,2% 35%,37% 32%);background:linear-gradient(135deg,#f5c542,#e879f9,#60a5fa,#34d399);font-size:calc(var(--s) * .38);padding-top:6%}
+.medal.on.m2,.medal.on.m3{filter:drop-shadow(0 0 8px rgba(245,197,66,.55))}
+.medal.on.m4{animation:rainbow 3s linear infinite}
+.medal.next .m{opacity:.75;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@media (prefers-reduced-motion:reduce){.ring svg,.bar>div,.medal,.medal .m{animation:none!important}}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{padding:9px 14px;border-radius:12px;background:var(--card2);border:1px solid var(--line);color:var(--text);font-weight:600;cursor:pointer;font-size:14px;font-family:inherit}
 .chip.sel{background:#173a2d;border-color:var(--green2);color:var(--green)}
@@ -154,7 +181,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
         <div class="ring">
           <svg width="110" height="110"><circle cx="55" cy="55" r="47" stroke="#0b0d11" stroke-width="11" fill="none"/>
           <circle id="oRing" cx="55" cy="55" r="47" stroke="url(#gr)" stroke-width="11" fill="none" stroke-linecap="round" stroke-dasharray="295.3" stroke-dashoffset="295.3" style="transition:stroke-dashoffset 1s"/>
-          <defs><linearGradient id="gr"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#f5c542"/></linearGradient></defs></svg>
+          <defs><linearGradient id="gr"><stop id="gr0" offset="0" stop-color="#10b981"/><stop id="gr1" offset="1" stop-color="#34d399"/></linearGradient></defs></svg>
           <div class="pct"><div id="oPct">—</div><span>hedef</span></div>
         </div>
         <div style="flex:1">
@@ -164,7 +191,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
         </div>
       </div>
       <div class="small muted" id="oEta" style="margin-top:12px;white-space:pre-line;line-height:1.5"></div>
-      <div class="badges" id="oBadges"></div>
+      <div class="medals" id="oBadges"></div>
     </div>
 
     <div class="card" id="mCard">
@@ -204,6 +231,14 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
       <div class="list" id="aHold"></div>
     </div>
     <div class="card">
+      <h3>Hesapla &amp; tahmin</h3>
+      <label>Fiyatlar şu kadar değişirse</label>
+      <div class="chips" id="aCPct"></div>
+      <label for="aCTl">Şu kadar TL ile ne alırım?</label>
+      <input id="aCTl" inputmode="decimal" placeholder="örn. 50.000" autocomplete="off">
+      <div id="aCalc" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
       <h3>Gram altın fiyat geçmişi</h3>
       <div class="cw" style="height:180px" id="cGoldPriceW"><canvas id="cGoldPrice"></canvas></div>
       <div class="empty small" id="cGoldPriceEmpty">Fiyat geçmişi, uygulamayı açtığın her gün birikecek.</div>
@@ -225,6 +260,14 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
     <div class="card">
       <div class="row between"><h3 style="margin:0">Dövizlerim</h3><button class="chip" id="btnAddFx">+ Ekle</button></div>
       <div class="list" id="dHold"></div>
+    </div>
+    <div class="card">
+      <h3>Hesapla &amp; tahmin</h3>
+      <label>Fiyatlar şu kadar değişirse</label>
+      <div class="chips" id="dCPct"></div>
+      <label for="dCTl">Şu kadar TL ile ne alırım?</label>
+      <input id="dCTl" inputmode="decimal" placeholder="örn. 50.000" autocomplete="off">
+      <div id="dCalc" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <h3>Kur geçmişi</h3>

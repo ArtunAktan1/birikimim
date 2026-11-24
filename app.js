@@ -51,6 +51,9 @@ const isFx = t => FX.has(t), isGold = t => !FX.has(t);
 const FX_COL = { USD: '#34d399', EUR: '#60a5fa', GBP: '#a78bfa' };
 const SHOW_PRICES = ['GRA', 'CEYREKALTIN', 'YARIMALTIN', 'TAMALTIN', 'CUMHURIYETALTINI', 'YIA', 'USD', 'EUR', 'GBP'];
 const MILESTONES = [10, 25, 50, 75, 100];
+const MEDALS = ['🥉', '🥈', '🥇', '🏆', '👑'];
+const tier = p => p >= 100 ? 4 : p >= 75 ? 3 : p >= 50 ? 2 : p >= 25 ? 1 : 0;
+const RING_COL = [['#10b981', '#34d399'], ['#10b981', '#60a5fa'], ['#60a5fa', '#a78bfa'], ['#a78bfa', '#f5c542'], ['#f5c542', '#e879f9']];
 const PRICE_API = 'https://finans.truncgil.com/v4/today.json';
 
 // ================= Durum & yerel depolama (IndexedDB) =================
@@ -173,10 +176,10 @@ function route() {
 }
 window.addEventListener('hashchange', route);
 
-function confetti() {
+function confetti(n = 140) {
   const c = $('confetti'), x = c.getContext('2d'); c.width = innerWidth; c.height = innerHeight;
   const cols = ['#34d399', '#f5c542', '#60a5fa', '#a78bfa', '#f87171'];
-  const P = Array.from({ length: 140 }, () => ({ x: innerWidth / 2, y: innerHeight / 3, vx: (Math.random() - .5) * 14, vy: Math.random() * -14 - 4, s: Math.random() * 6 + 4, c: cols[Math.random() * 5 | 0], r: Math.random() * 6 }));
+  const P = Array.from({ length: n }, () => ({ x: innerWidth / 2, y: innerHeight / 3, vx: (Math.random() - .5) * 14, vy: Math.random() * -14 - 4, s: Math.random() * 6 + 4, c: cols[Math.random() * 5 | 0], r: Math.random() * 6 }));
   let f = 0; (function tick() {
     x.clearRect(0, 0, c.width, c.height);
     P.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .45; p.vx *= .99; p.r += .2; x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * .6); x.restore(); });
@@ -205,7 +208,7 @@ function render() {
   if (armed) {
     if (lastPct !== null && goal && pct > lastPct) {
       const hit = [...MILESTONES].reverse().find(x => lastPct < x && pct >= x);
-      if (hit) { confetti(); setTimeout(() => toast(hit === 100 ? '🎉 BÜYÜK HEDEFE ULAŞTIN!' : `🏅 Hedefin %${hit}'ine ulaştın!`), 900); }
+      if (hit) { confetti(60 + hit * 2.4); setTimeout(() => toast(hit === 100 ? '🎉 BÜYÜK HEDEFE ULAŞTIN!' : `🏅 Hedefin %${hit}'ine ulaştın!`), 900); }
     }
     if (lastMonthPct !== null && mg && lastMonthPct < 100 && mPct >= 100) { confetti(); setTimeout(() => toast('🎯 Bu ayın hedefini tutturdun!'), 900); }
     armed = false;
@@ -220,6 +223,8 @@ function render() {
     $('oTotal').textContent = TL.format(total); $('oCash').textContent = TL.format(cash); $('oGold').textContent = TL.format(gv);
     $('oPct').textContent = goal ? (pct < 10 ? pct.toFixed(1) : Math.floor(pct)) + '%' : '—';
     $('oRing').style.strokeDashoffset = 295.3 * (1 - pct / 100);
+    const tr = tier(pct); $('oRing').closest('.ring').dataset.tier = tr;
+    $('gr0').setAttribute('stop-color', RING_COL[tr][0]); $('gr1').setAttribute('stop-color', RING_COL[tr][1]);
     $('oGoalName').textContent = goal ? (st.goalName || 'Hedefim') : 'Büyük hedefini belirle';
     $('oGoalAmt').textContent = goal ? `${TL.format(base)} / ${TL.format(goal)}${incGold ? '' : ' (altın hariç)'}` : 'Sağ üstteki ⚙️ ayarlardan gir';
     $('oRemain').innerHTML = goal ? (base >= goal ? '<span class="pos">Hedef tamamlandı ✓</span>' : `Kalan: <b>${TL.format(goal - base)}</b>`) : '';
@@ -243,14 +248,15 @@ function render() {
       eta = lines.join('\n');
     }
     $('oEta').textContent = eta;
-    $('oBadges').innerHTML = goal ? MILESTONES.map(x => `<span class="badge ${pct >= x ? 'on' : ''}">${pct >= x ? '🏅' : '○'} %${x}</span>`).join('') : '';
+    const nextM = MILESTONES.find(x => pct < x);
+    $('oBadges').innerHTML = goal ? MILESTONES.map((x, i) => `<div class="medal m${i} ${pct >= x ? 'on' : ''} ${x === nextM ? 'next' : ''}" style="--s:${34 + i * 7}px" title="%${x}"><div class="m">${MEDALS[i]}</div>%${x}</div>`).join('') : '';
 
     // Aylık hedef kartı
     $('mTitle').textContent = `${monthName(m)} hedefi`;
     if (mg) {
       const left = daysInMonth(m) - Number(today().slice(8)) + 1;
       const gs = monthGoalStats();
-      $('mBody').innerHTML = `<div class="bar ${mPct >= 100 ? 'done' : ''}"><div style="width:${mPct}%"></div></div>
+      $('mBody').innerHTML = `<div class="bar ${mPct >= 100 ? 'done' : ''}" data-tier="${tier(mPct)}"><div style="width:${mPct}%"></div></div>
         <div class="mrow"><span><b class="${mn >= 0 ? 'pos' : 'neg'}">${TL.format(mn)}</b> / ${TL.format(mg)}</span><b>${Math.floor(mPct)}%</b></div>
         <div class="small muted" style="margin-top:6px">${mn >= mg ? '🎯 Bu ayın hedefi tamam! Fazlası büyük hedefe katkı.' : `Ay sonuna ${left} gün · kalan ${TL.format(mg - mn)}`}</div>
         ${gs.total ? `<div class="small muted" style="margin-top:4px">Geçmiş aylar: ${gs.hit}/${gs.total} tutturuldu${gs.run > 1 ? ` · üst üste ${gs.run} ay 🔥` : ''}</div>` : ''}`;
@@ -291,6 +297,7 @@ function drawPriceAge() {
 }
 // p: sayfa öneki ('a' altın, 'd' döviz); only: o sayfanın türleri
 function renderAsset(p, only) {
+  renderCalc(p, only);
   const fx = p === 'd', gv = goldValue(undefined, only), cost = goldCost(only);
   $(p + 'Total').textContent = TL.format(gv);
   if (!fx) { const gp = priceOf('GRA'); $('aGram').textContent = gp ? N2.format(gv / gp) : '—'; }
@@ -331,6 +338,44 @@ function renderAsset(p, only) {
       plugins: { legend: { display: fx, labels: { color: '#8b93a3', boxWidth: 10 } }, tooltip: { displayColors: fx, callbacks: { title: c => dLong(days[c[0].dataIndex]), label: c => ` ${c.dataset.label}: ${TL2.format(c.parsed.y)}` } } },
       scales: { x: axisX, y: { grid: { color: '#232833' }, ticks: { color: '#8b93a3', font: { size: 10 }, callback: v => N2.format(v) } } } }) });
 }
+
+// ---- Hesapla & tahmin ----
+const CALC_TYPES = { a: ['GRA', 'CEYREKALTIN', 'CUMHURIYETALTINI'], d: ['USD', 'EUR', 'GBP'] };
+const CALC_PCTS = [-20, -10, -5, 5, 10, 20, 50], calcPct = { a: 10, d: 10 };
+const TREND_MIN = 30; // gün: daha kısa geçmişten yıllık tahmin yapmak yanıltıcı olur
+// Son 90 günün kayıtlı fiyatlarından günlük bileşik değişim
+function trendRate(t) {
+  const d = histDays.filter(x => S.hist[x][t]).slice(-91);
+  const span = d.length > 1 ? daysBetween(d[0], d[d.length - 1]) : 0;
+  return { span, r: span >= TREND_MIN ? Math.pow(S.hist[d[d.length - 1]][t] / S.hist[d[0]][t], 1 / span) - 1 : null };
+}
+function renderCalc(p, only) {
+  const kv = (k, v) => `<div class="kv"><span>${k}</span>${v}</div>`;
+  const sg = v => `<b class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : '−'}${TL.format(Math.abs(v))}</b>`;
+  $(p + 'CPct').innerHTML = CALC_PCTS.map(v => `<button class="chip ${v === calcPct[p] ? 'sel' : ''}" data-cpct="${p}:${v}" style="padding:7px 10px;font-size:13px">${v > 0 ? '+' : ''}${v}%</button>`).join('');
+  const h = holdings(), held = Object.keys(h).filter(t => only(t) && h[t] > 1e-9), now = goldValue(undefined, only);
+  let html = '';
+  // 1) Senaryo
+  const pc = calcPct[p];
+  html += now > 0 ? kv(`Fiyatlar %${Math.abs(pc)} ${pc > 0 ? 'artarsa' : 'düşerse'}`, `<b>${TL.format(now * (1 + pc / 100))} ${sg(now * pc / 100)}</b>`)
+    : '<div class="small muted">Varlık ekleyince senaryo hesaplanır.</div>';
+  // 2) TL ile alım (satış fiyatından alınır)
+  const tl = parseNum($(p + 'CTl').value);
+  if (tl > 0) html += CALC_TYPES[p].map(t => { const q = S.prices?.items?.[t]?.sell || priceOf(t); return q ? kv(`${TL.format(tl)} ile`, `<b>≈ ${N2.format(tl / q)} ${GOLD[t][1]} ${GOLD[t][0]}</b>`) : ''; }).join('');
+  // 3) Eğilim tahmini: kayıtlı fiyat geçmişinin eğilimi sürerse
+  const types = held.length ? held : [CALC_TYPES[p][0]], tr = types.map(t => [t, trendRate(t)]);
+  const short = tr.filter(([, x]) => x.r === null);
+  if (short.length) html += `<div class="small muted" style="margin-top:10px;line-height:1.5">📈 Eğilim tahmini için en az ${TREND_MIN} günlük fiyat geçmişi gerekiyor (şu an ${Math.min(...short.map(([, x]) => x.span))} gün). Uygulamayı açtığın her gün geçmiş birikir.</div>`;
+  else {
+    const proj = days => types.reduce((a, t, i) => a + (held.length ? h[t] : 1) * priceOf(t) * Math.pow(1 + tr[i][1].r, days), 0);
+    const base = held.length ? now : proj(0), label = held.length ? 'Varlığın' : GOLD[types[0]][0];
+    html += `<div class="small muted" style="margin:12px 0 2px">📈 Son ${Math.min(...tr.map(([, x]) => x.span))} günün eğilimi sürerse (${label})</div>`
+      + [[90, '3 ay sonra'], [180, '6 ay sonra'], [365, '1 yıl sonra']].map(([d, l]) => { const v = proj(d); return kv(l, `<b>${TL.format(v)} ${sg(v - base)}</b>`); }).join('');
+  }
+  html += '<div class="small muted" style="margin-top:8px;line-height:1.5">Bu hesaplar kesin tahmin değildir; geçmiş fiyat hareketinin aynen sürdüğü varsayılır. Yatırım tavsiyesi değildir.</div>';
+  $(p + 'Calc').innerHTML = html;
+}
+document.addEventListener('input', ev => { const m = /^([ad])CTl$/.exec(ev.target.id); if (m) renderCalc(m[1], m[1] === 'd' ? isFx : isGold); });
 
 const axisY = (stacked) => ({ stacked, grid: { color: '#232833' }, ticks: { color: '#8b93a3', font: { size: 10 }, callback: v => COMPACT.format(v) } });
 const axisX = { grid: { display: false }, ticks: { color: '#8b93a3', maxTicksLimit: 6, font: { size: 10 } } };
@@ -498,7 +543,7 @@ function renderMonthly() {
   // Hero
   const gPct = goal ? Math.min(100, Math.max(0, net / goal * 100)) : 0;
   html += `<div class="card hero"><div class="small muted">Bu ayın net birikimi</div><div class="big ${net >= 0 ? '' : 'neg'}">${net >= 0 ? '' : '−'}${TL.format(Math.abs(net))}</div>
-    ${goal ? `<div class="bar ${net >= goal ? 'done' : ''}"><div style="width:${gPct}%"></div></div><div class="mrow"><span>Hedef ${TL.format(goal)}</span><b>${net >= goal ? '🎯 Tuttu' : Math.floor(gPct) + '%'}</b></div>` : '<div class="small muted" style="margin-top:6px">Bu ay için hedef yok</div>'}
+    ${goal ? `<div class="bar ${net >= goal ? 'done' : ''}" data-tier="${tier(gPct)}"><div style="width:${gPct}%"></div></div><div class="mrow"><span>Hedef ${TL.format(goal)}</span><b>${net >= goal ? '🎯 Tuttu' : Math.floor(gPct) + '%'}</b></div>` : '<div class="small muted" style="margin-top:6px">Bu ay için hedef yok</div>'}
     ${pNet !== null ? `<div class="small muted" style="margin-top:8px">Geçen ay (${monthOnly(pm)}): ${TL.format(pNet)} · ${pNet ? (net >= pNet ? '▲ ' : '▼ ') + Math.abs((net - pNet) / Math.abs(pNet) * 100).toFixed(0) + '%' : ''}</div>` : ''}</div>`;
   // Birikim
   html += card('Birikim', kv('Biriktirilen', fm(saved)) + kv('Çekilen / harcanan', spent ? fm(-spent) : '<b>—</b>') + kv('Net', fm(net))
@@ -547,6 +592,7 @@ function addEntry(e, msg) {
 }
 
 document.addEventListener('click', async ev => {
+  const cp = ev.target.closest('[data-cpct]'); if (cp) { const [k, v] = cp.dataset.cpct.split(':'); calcPct[k] = +v; renderCalc(k, k === 'd' ? isFx : isGold); return; }
   const f = ev.target.closest('[data-f]'); if (f) { gFilter = f.dataset.f; renderHistory(); return; }
   const a = ev.target.closest('[data-act="backup"]'); if (a) { backup(); return; }
   const rf = ev.target.closest('[data-act="refresh"]'); if (rf) { fetchPrices(true); return; }
