@@ -26,25 +26,28 @@ const daysInMonth = m => { const [y, mo] = m.split('-').map(Number); return new 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
 
 const CATS = [
-  ['yemek', '☕', 'Yemek & kahve'], ['ulasim', '🚌', 'Ulaşım'], ['alisveris', '🛍️', 'Alışveriş'],
-  ['eglence', '🎮', 'Eğlence'], ['abonelik', '📱', 'Abonelik'], ['duzenli', '🏦', 'Düzenli birikim'],
-  ['gelir', '💼', 'Ek gelir'], ['diger', '✨', 'Diğer'], ['baslangic', '🏁', 'Mevcut birikim (başlangıç)']
+  ['maas', '💼', 'Maaştan'], ['duzenli', '🏦', 'Düzenli birikim'], ['prim', '🎁', 'Prim / ikramiye'],
+  ['gelir', '💰', 'Ek gelir'], ['diger', '✨', 'Diğer'], ['baslangic', '🏁', 'Mevcut birikim (başlangıç)']
 ];
+// Eski sürümün küçük tasarruf kategorileri: seçilemez, yalnızca eski kayıtlar doğru görünsün diye
+const LEGACY = [['yemek', '☕', 'Yemek & kahve'], ['ulasim', '🚌', 'Ulaşım'], ['alisveris', '🛍️', 'Alışveriş'], ['eglence', '🎮', 'Eğlence'], ['abonelik', '📱', 'Abonelik']];
 const WCATS = [['harcama', '💸', 'Harcama'], ['acil', '🚑', 'Acil durum'], ['diger', '✨', 'Diğer']];
 // Nakit <-> altın aktarımları: toplam nakdi değiştirir ama aylık hedefi/aylık birikimi etkilemez.
-const XCATS = [['altin', '🪙', 'Altın alımı'], ['altinsatis', '🪙', 'Altın satışı']];
+const XCATS = [['altin', '🪙', 'Altın/döviz alımı'], ['altinsatis', '🪙', 'Altın/döviz satışı']];
 const TRANSFER = new Set(['altin', 'altinsatis']);
 // İstatistik dışı: aktarımlar ve uygulamaya başlarken girilen mevcut birikim (toplama dahil, grafiklere/aylık hesaba değil)
 const EXCL = new Set([...TRANSFER, 'baslangic']);
 const catInfo = (k, kind) => (kind === 'withdraw' ? WCATS : CATS).find(c => c[0] === k)
-  || CATS.concat(WCATS, XCATS).find(c => c[0] === k) || ['diger', '✨', 'Diğer'];
+  || CATS.concat(WCATS, XCATS, LEGACY).find(c => c[0] === k) || ['diger', '✨', 'Diğer'];
 
 const GOLD = {
   GRA: ['Gram altın', 'gram'], CEYREKALTIN: ['Çeyrek altın', 'adet'], YARIMALTIN: ['Yarım altın', 'adet'],
   TAMALTIN: ['Tam altın', 'adet'], CUMHURIYETALTINI: ['Cumhuriyet altını', 'adet'], ATAALTIN: ['Ata altın', 'adet'],
-  YIA: ['22 ayar bilezik', 'gram'], '18AYARALTIN': ['18 ayar', 'gram'], '14AYARALTIN': ['14 ayar', 'gram'], HAS: ['Has altın', 'gram']
+  YIA: ['22 ayar bilezik', 'gram'], '18AYARALTIN': ['18 ayar', 'gram'], '14AYARALTIN': ['14 ayar', 'gram'], HAS: ['Has altın', 'gram'],
+  USD: ['Dolar', '$'], EUR: ['Euro', '€'], GBP: ['Sterlin', '£']
 };
-const SHOW_PRICES = ['GRA', 'CEYREKALTIN', 'YARIMALTIN', 'TAMALTIN', 'CUMHURIYETALTINI', 'YIA'];
+const FX = new Set(['USD', 'EUR', 'GBP']);
+const SHOW_PRICES = ['GRA', 'CEYREKALTIN', 'YARIMALTIN', 'TAMALTIN', 'CUMHURIYETALTINI', 'YIA', 'USD', 'EUR', 'GBP'];
 const MILESTONES = [10, 25, 50, 75, 100];
 const PRICE_API = 'https://finans.truncgil.com/v4/today.json';
 
@@ -108,7 +111,7 @@ function priceOf(type, date) {
 const signed = e => e.kind === 'withdraw' ? -e.amount : e.amount;
 const cashTotal = upTo => S.entries.reduce((a, e) => a + (!upTo || e.date <= upTo ? signed(e) : 0), 0);
 function holdings(upTo) { const h = {}; S.gold.forEach(g => { if (!upTo || g.date <= upTo) h[g.type] = (h[g.type] || 0) + g.qty; }); return h; }
-function goldValue(upTo) { const h = holdings(upTo); let v = 0; for (const t in h) v += h[t] * priceOf(t, upTo); return v; }
+function goldValue(upTo, only = () => true) { const h = holdings(upTo); let v = 0; for (const t in h) if (only(t)) v += h[t] * priceOf(t, upTo); return v; }
 function goldCost() {
   const per = {};
   [...S.gold].sort((a, b) => a.date.localeCompare(b.date) || a.ts - b.ts).forEach(g => {
@@ -134,15 +137,6 @@ function monthlyPace() {
   return { cur, pace: cur, n: 0, basis: 'current' };
 }
 function monthGoal(m) { return S.monthGoals[m] ?? S.settings.monthlyGoal ?? 0; }
-const saveDates = () => [...new Set(S.entries.filter(e => e.kind !== 'withdraw' && !EXCL.has(e.category)).map(e => e.date))].sort();
-function streaks() {
-  const dates = saveDates(), set = new Set(dates); let cur = 0, d = today();
-  if (!set.has(d)) d = addDays(d, -1);
-  while (set.has(d)) { cur++; d = addDays(d, -1); }
-  let best = 0, run = 0, prev = null;
-  dates.forEach(x => { run = (prev && addDays(prev, 1) === x) ? run + 1 : 1; best = Math.max(best, run); prev = x; });
-  return { cur, best };
-}
 const startDate = () => [...S.entries.map(e => e.date), ...S.gold.map(g => g.date)].sort()[0] || today();
 function monthsRange() {
   const out = []; let m = startDate().slice(0, 7); const end = thisMonth();
@@ -252,20 +246,17 @@ function render() {
     // Aylık hedef kartı
     $('mTitle').textContent = `${monthName(m)} hedefi`;
     if (mg) {
-      const left = daysInMonth(m) - Number(today().slice(8)) + 1, need = Math.max(0, mg - mn);
+      const left = daysInMonth(m) - Number(today().slice(8)) + 1;
       const gs = monthGoalStats();
       $('mBody').innerHTML = `<div class="bar ${mPct >= 100 ? 'done' : ''}"><div style="width:${mPct}%"></div></div>
         <div class="mrow"><span><b class="${mn >= 0 ? 'pos' : 'neg'}">${TL.format(mn)}</b> / ${TL.format(mg)}</span><b>${Math.floor(mPct)}%</b></div>
-        <div class="small muted" style="margin-top:6px">${mn >= mg ? '🎯 Bu ayın hedefi tamam! Fazlası büyük hedefe katkı.' : `Ay sonuna ${left} gün · günde ${TL.format(need / left)} biriktirmen yeterli`}</div>
+        <div class="small muted" style="margin-top:6px">${mn >= mg ? '🎯 Bu ayın hedefi tamam! Fazlası büyük hedefe katkı.' : `Ay sonuna ${left} gün · kalan ${TL.format(mg - mn)}`}</div>
         ${gs.total ? `<div class="small muted" style="margin-top:4px">Geçmiş aylar: ${gs.hit}/${gs.total} tutturuldu${gs.run > 1 ? ` · üst üste ${gs.run} ay 🔥` : ''}</div>` : ''}`;
     } else $('mBody').innerHTML = '<div class="small muted" style="margin-top:8px">Aylık bir hedef koy; her ay sıfırdan başlayan kısa bir yarış gibi motive eder.</div>';
 
-    const { cur } = streaks(); $('oStreak').textContent = cur + ' gün';
-    const dow = (new Date().getDay() + 6) % 7, wStart = addDays(today(), -dow);
     const fm = v => `<span class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : ''}${TL.format(v)}</span>`;
-    $('oMonth').innerHTML = fm(mn); $('oWeek').innerHTML = fm(sumRange(wStart, today()));
+    $('oMonth').innerHTML = fm(mn); $('oPrev').innerHTML = fm(monthNet(prevMonth(m))); $('oYear').innerHTML = fm(sumRange(m.slice(0, 4) + '-01-01', today()));
     $('oRecent').innerHTML = entryList(S.entries.slice(0, 5)) || '<div class="empty">Henüz kayıt yok. Aşağıdaki + ile ilk birikimini ekle!</div>';
-    $('quick').innerHTML = [50, 100, 250, 500, 1000].map(v => `<button class="chip" data-q="${v}">+${v} ₺</button>`).join('');
   }
   if (view === 'altin') renderGold();
   if (view === 'istatistik') renderStats();
@@ -296,9 +287,9 @@ function drawPriceAge() {
   document.querySelectorAll('[data-act="refresh"]').forEach(el => el.classList.toggle('loading', fetching));
 }
 function renderGold() {
-  const gv = goldValue(), cost = goldCost(), gp = priceOf('GRA');
+  const gv = goldValue(), cost = goldCost(), gp = priceOf('GRA'), gOnly = goldValue(undefined, t => !FX.has(t));
   $('aTotal').textContent = TL.format(gv);
-  $('aGram').textContent = gp ? N2.format(gv / gp) : '—';
+  $('aGram').textContent = gp ? N2.format(gOnly / gp) : '—';
   const pl = gv - cost;
   $('aPL').innerHTML = cost > 0 ? `<span class="${pl >= 0 ? 'pos' : 'neg'}">${pl >= 0 ? '▲' : '▼'} ${TL.format(Math.abs(pl))} (${(pl / cost * 100).toFixed(1)}%)</span>` : '';
   // Makas: şu an alıp hemen bozdursan kaybedeceğin tutar (bilgi amaçlı)
@@ -312,16 +303,16 @@ function renderGold() {
   $('aUpd').classList.toggle('stale', mins === null || mins > 240);
   $('aPrices').innerHTML = S.prices ? SHOW_PRICES.map(t => {
     const p = S.prices.items[t]; if (!p) return '';
-    return `<div class="it"><div class="ic">🪙</div><div class="t"><b>${GOLD[t][0]}</b><span>Alış ${TL2.format(p.buy)} · Satış ${TL2.format(p.sell)}</span></div>
+    return `<div class="it"><div class="ic">${FX.has(t) ? '💵' : '🪙'}</div><div class="t"><b>${GOLD[t][0]}</b><span>Alış ${TL2.format(p.buy)} · Satış ${TL2.format(p.sell)}</span></div>
     <div class="a ${p.change >= 0 ? 'pos' : 'neg'}">${p.change >= 0 ? '▲' : '▼'} %${Math.abs(p.change).toFixed(2)}</div></div>`;
   }).join('') : '<div class="empty">Fiyatlar alınamadı. İnternet bağlantını kontrol edip ↻ Yenile\'ye bas.</div>';
   const h = holdings();
   const rows = Object.keys(h).filter(t => Math.abs(h[t]) > 1e-9).map(t => {
     const v = h[t] * priceOf(t);
-    return `<div class="it tap" data-gtype="${t}"><div class="ic">🟡</div><div class="t"><b>${GOLD[t][0]}</b><span>${N2.format(h[t])} ${GOLD[t][1]} × ${TL.format(priceOf(t))} · düzenlemek için dokun</span></div><div class="a goldc">${TL.format(v)}</div></div>`;
+    return `<div class="it tap" data-gtype="${t}"><div class="ic">${FX.has(t) ? '💵' : '🟡'}</div><div class="t"><b>${GOLD[t][0]}</b><span>${N2.format(h[t])} ${GOLD[t][1]} × ${TL.format(priceOf(t))} · düzenlemek için dokun</span></div><div class="a goldc">${TL.format(v)}</div></div>`;
   }).join('');
   const tx = [...S.gold].sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts).map(g => `<div class="it tap" data-gedit="${g.id}"><div class="ic">${g.qty > 0 ? '⬇️' : '⬆️'}</div><div class="t"><b>${g.qty > 0 ? 'Alış' : 'Satış'}: ${N2.format(Math.abs(g.qty))} ${GOLD[g.type][1]} ${GOLD[g.type][0]}</b><span>${dShort(g.date)}${g.unit ? ` · birim ${TL.format(g.unit)}` : ''}</span></div><button class="del" data-gdel="${g.id}" aria-label="Sil">✕</button></div>`).join('');
-  $('aHold').innerHTML = rows ? rows + `<div class="small muted" style="margin:14px 0 4px">İşlemler</div>${tx}` : (tx || '<div class="empty">Altınlarını ekle; anlık değerini ve kâr/zararını takip edelim.</div>');
+  $('aHold').innerHTML = rows ? rows + `<div class="small muted" style="margin:14px 0 4px">İşlemler</div>${tx}` : (tx || '<div class="empty">Altın ve dövizlerini ekle; anlık değerini ve kâr/zararını takip edelim.</div>');
   const days = histDays.filter(d => S.hist[d].GRA);
   const has = days.length >= 1;
   $('cGoldPriceEmpty').style.display = days.length >= 2 ? 'none' : 'block';
@@ -384,7 +375,7 @@ function renderStats() {
   const pts = days.length <= 45;
   const line = (label, data, color) => ({ label, data, borderColor: color, borderWidth: 2, fill: false, tension: .25,
     pointRadius: pts ? 4 : 0, pointHoverRadius: 6, pointBorderWidth: 2, pointBackgroundColor: '#181b22', pointBorderColor: color });
-  mkChart('cNet', { type: 'line', data: { labels: days.map(dShort), datasets: [line('Toplam varlık', totS, '#34d399'), line('Altın', goldS, '#f5c542')] },
+  mkChart('cNet', { type: 'line', data: { labels: days.map(dShort), datasets: [line('Toplam varlık', totS, '#34d399'), line('Altın & döviz', goldS, '#f5c542')] },
     options: baseOpts({ interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: true, labels: { color: '#8b93a3', boxWidth: 10 } }, tooltip: { callbacks: { title: c => dLong(days[c[0].dataIndex]), label: c => ` ${c.dataset.label}: ${TL.format(c.parsed.y)}` } } } }) });
   const bas = S.entries.filter(e => e.category === 'baslangic').reduce((a, e) => a + e.amount, 0);
@@ -400,7 +391,7 @@ function renderStats() {
 
   // --- Göstergeler ---
   const statE = S.entries.filter(isStat), saves = statE.filter(e => e.kind !== 'withdraw');
-  const { cur, best } = streaks(), amounts = saves.map(e => e.amount);
+  const amounts = saves.map(e => e.amount);
   const totalSaved = amounts.reduce((a, b) => a + b, 0), withdrawn = statE.filter(e => e.kind === 'withdraw').reduce((a, e) => a + e.amount, 0);
   const allM = monthsRange(), bestM = [...allM].sort((a, b) => monthNet(b) - monthNet(a))[0];
   const prevM = allM[allM.length - 2], ch = prevM && monthNet(prevM) ? (monthNet(thisMonth()) - monthNet(prevM)) / Math.abs(monthNet(prevM)) * 100 : null;
@@ -409,11 +400,10 @@ function renderStats() {
     ['Toplam biriktirilen', TL.format(totalSaved), 'pos'], ['Toplam çekilen', TL.format(withdrawn), 'neg'],
     ['Kayıt sayısı', saves.length + ' kayıt'], ['Ortalama kayıt', amounts.length ? TL.format(totalSaved / amounts.length) : '—'],
     ['En büyük tek kayıt', amounts.length ? TL.format(Math.max(...amounts)) : '—'], ['Aylık ortalama', monthlyPace().basis === 'avg' ? TL.format(monthlyPace().pace) : '—'],
-    ['Mevcut seri', cur + ' gün'], ['En uzun seri', best + ' gün'],
     ['Aylık hedef başarısı', gs.total ? `${gs.hit}/${gs.total} ay` : '—', gs.total && gs.hit === gs.total ? 'pos' : ''], ['Üst üste tutturulan', gs.run + ' ay'],
-    ['Aktif gün', saveDates().length + ' / ' + (n + 1)], ['Bu ay vs geçen ay', ch === null ? '—' : (ch >= 0 ? '▲ ' : '▼ ') + Math.abs(ch).toFixed(0) + '%', ch === null ? '' : ch >= 0 ? 'pos' : 'neg'],
-    ['En iyi ay', bestM && monthNet(bestM) > 0 ? capTr(monthName(bestM)) : '—'], ['Altın payı', tot ? (gv / tot * 100).toFixed(0) + '%' : '—', 'goldc'],
-    ['Altın kâr/zarar', cost > 0 ? TL.format(gv - cost) : '—', gv - cost >= 0 ? 'pos' : 'neg'], ['Toplam varlık', TL.format(tot)],
+    ['Bu ay vs geçen ay', ch === null ? '—' : (ch >= 0 ? '▲ ' : '▼ ') + Math.abs(ch).toFixed(0) + '%', ch === null ? '' : ch >= 0 ? 'pos' : 'neg'],
+    ['En iyi ay', bestM && monthNet(bestM) > 0 ? capTr(monthName(bestM)) : '—'], ['Altın & döviz payı', tot ? (gv / tot * 100).toFixed(0) + '%' : '—', 'goldc'],
+    ['Altın & döviz kâr/zarar', cost > 0 ? TL.format(gv - cost) : '—', gv - cost >= 0 ? 'pos' : 'neg'], ['Toplam varlık', TL.format(tot)],
   ];
   $('kpis').innerHTML = K.map(k => `<div class="stat"><div class="l">${k[0]}</div><div class="v ${k[2] || ''}">${k[1]}</div></div>`).join('');
 
@@ -512,16 +502,16 @@ function renderMonthly() {
   // Altın
   if (hasGold) {
     const gl = gTx.map(g => `${g.qty > 0 ? 'Alış' : 'Satış'}: ${N2.format(Math.abs(g.qty))} ${GOLD[g.type][1]} ${GOLD[g.type][0]} (${dShort(g.date)})`).join('<br>');
-    html += card('Altın', kv('Ay başı değeri', `<b>${TL.format(g0)}</b>`) + kv(m === cur ? 'Bugünkü değeri' : 'Ay sonu değeri', `<b>${TL.format(g1)}</b>`)
+    html += card('Altın & döviz', kv('Ay başı değeri', `<b>${TL.format(g0)}</b>`) + kv(m === cur ? 'Bugünkü değeri' : 'Ay sonu değeri', `<b>${TL.format(g1)}</b>`)
       + (buyCost ? kv('Bu ay alınan', `<b>${TL.format(buyCost)}</b>`) : '') + (sellGet ? kv('Bu ay satılan', `<b>${TL.format(sellGet)}</b>`) : '')
-      + kv('Altın kâr / zarar (fiyat etkisi)', fm(goldPL))
+      + kv('Kâr / zarar (kur ve fiyat etkisi)', fm(goldPL))
       + (p0 ? kv(`Gram altın (${d0 <= prevEnd ? 'ay başı' : dShort(d0)} → ${m === cur ? 'bugün' : 'ay sonu'})`, `<b>${TL2.format(p0)} → ${TL2.format(p1)} <span class="${p1 >= p0 ? 'pos' : 'neg'}">${p1 >= p0 ? '▲' : '▼'}%${Math.abs((p1 - p0) / p0 * 100).toFixed(1)}</span></b>`) : '')
       + (gl ? `<div class="small muted" style="margin-top:8px;line-height:1.6">${gl}</div>` : '')
-      + `<div class="small muted" style="margin-top:8px">Kâr/zarar = değerdeki değişim − bu ayki alımlar + satışlar. Değer bozdurma fiyatıyla hesaplanır; alış-satış farkı (makas) dahildir.</div>`);
+      + `<div class="small muted" style="margin-top:8px">Kâr/zarar = değerdeki değişim − bu ayki alımlar + satışlar. Değer bozdurma / alış kuruyla hesaplanır; alış-satış farkı (makas) dahildir.</div>`);
   }
   // Toplam varlık
   html += card('Toplam varlık', kv('Ay başı', `<b>${TL.format(t0)}</b>`) + kv(m === cur ? 'Bugün' : 'Ay sonu', `<b>${TL.format(t1)}</b>`) + kv('Değişim', fm(dT))
-    + `<div class="small muted" style="margin-top:8px;line-height:1.6">Değişimin kaynağı: net birikim ${TL.format(net)}${bas ? ` · başlangıç ${TL.format(bas)}` : ''}${hasGold ? ` · altın fiyat etkisi ${TL.format(goldPL)}` : ''}${Math.abs(other) > 1 ? ` · diğer ${TL.format(other)} (TL birikimine bağlanmadan eklenen altın vb.)` : ''}</div>`);
+    + `<div class="small muted" style="margin-top:8px;line-height:1.6">Değişimin kaynağı: net birikim ${TL.format(net)}${bas ? ` · başlangıç ${TL.format(bas)}` : ''}${hasGold ? ` · altın & döviz fiyat etkisi ${TL.format(goldPL)}` : ''}${Math.abs(other) > 1 ? ` · diğer ${TL.format(other)} (TL birikimine bağlanmadan eklenen altın/döviz vb.)` : ''}</div>`);
   // Kategoriler
   html += card('Kategoriler', catBars(catTotals(inM)));
   $('mSummary').innerHTML = html;
@@ -550,7 +540,6 @@ function addEntry(e, msg) {
 }
 
 document.addEventListener('click', async ev => {
-  const q = ev.target.closest('[data-q]'); if (q) { addEntry({ kind: 'save', amount: +q.dataset.q, category: 'diger', note: '', date: today() }); return; }
   const f = ev.target.closest('[data-f]'); if (f) { gFilter = f.dataset.f; renderHistory(); return; }
   const a = ev.target.closest('[data-act="backup"]'); if (a) { backup(); return; }
   const rf = ev.target.closest('[data-act="refresh"]'); if (rf) { fetchPrices(true); return; }
@@ -600,7 +589,7 @@ function deleteGold(id) {
 }
 
 // ---- Kayıt ekleme / düzenleme ----
-let eKind = 'save', eCat = 'yemek', editEntryId = null;
+let eKind = 'save', eCat = 'maas', editEntryId = null;
 function drawCats() {
   // Bağlantısı kopmuş eski bir altın aktarım kaydı düzenlenirken kendi kategorisi listede kalsın
   const L = [...(eKind === 'withdraw' ? WCATS : CATS), ...XCATS.filter(c => c[0] === eCat)];
@@ -612,7 +601,7 @@ $('eCat').onclick = ev => { const b = ev.target.closest('[data-c]'); if (b) { eC
 $('eKind').onclick = ev => { const b = ev.target.closest('button'); if (!b) return; eKind = b.dataset.k; setSeg('eKind', eKind); drawCats(); };
 function openEntrySheet(e) {
   editEntryId = e ? e.id : null;
-  eKind = e ? e.kind : 'save'; eCat = e ? e.category : 'yemek'; setSeg('eKind', eKind);
+  eKind = e ? e.kind : 'save'; eCat = e ? e.category : 'maas'; setSeg('eKind', eKind);
   $('eTitle').textContent = e ? 'Kaydı düzenle' : 'Yeni kayıt';
   $('eSave').textContent = e ? 'Güncelle' : 'Kaydet';
   $('eDelete').style.display = e ? '' : 'none'; delete $('eDelete').dataset.confirm; $('eDelete').textContent = 'Bu kaydı sil';
@@ -653,7 +642,7 @@ $('gKind').onclick = ev => { const b = ev.target.closest('button'); if (!b) retu
 function openGoldSheet(g) {
   editGoldId = g ? g.id : null;
   gKind = g && g.qty < 0 ? 'sell' : 'buy'; setSeg('gKind', gKind);
-  $('gTitle').textContent = g ? 'Altın işlemini düzenle' : 'Altın işlemi';
+  $('gTitle').textContent = g ? 'İşlemi düzenle' : 'Altın / döviz işlemi';
   $('gSave').textContent = g ? 'Güncelle' : 'Kaydet';
   $('gDelete').style.display = g ? '' : 'none'; delete $('gDelete').dataset.confirm; $('gDelete').textContent = 'Bu işlemi sil';
   $('gType').value = g ? g.type : 'GRA';
@@ -684,7 +673,7 @@ $('gSave').onclick = () => {
   if (want && linked) { Object.assign(linked, entryData); g.link = linked.id; }
   else if (want) { const e = { id: uid(), ts: Date.now(), ...entryData }; S.entries.push(e); g.link = e.id; }
   else { if (linked) S.entries = S.entries.filter(x => x.id !== linked.id); delete g.link; }
-  commit(old ? 'Altın işlemi güncellendi ✓' : 'Altın işlemi kaydedildi 🪙'); closeSheets();
+  commit(old ? 'İşlem güncellendi ✓' : 'İşlem kaydedildi 🪙'); closeSheets();
 };
 $('gDelete').onclick = () => {
   const b = $('gDelete');

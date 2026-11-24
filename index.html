@@ -148,7 +148,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
       <div class="big" id="oTotal">—</div>
       <div class="row small" style="margin-top:4px;gap:14px">
         <span>💵 <b id="oCash">—</b></span><span class="goldc">🪙 <b id="oGold">—</b></span>
-        <button class="refresh" data-act="refresh" aria-label="Altın fiyatlarını yenile">↻ <span class="updLabel">—</span></button>
+        <button class="refresh" data-act="refresh" aria-label="Fiyatları yenile">↻ <span class="updLabel">—</span></button>
       </div>
       <div class="ringwrap">
         <div class="ring">
@@ -173,17 +173,12 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
     </div>
 
     <div class="grid3">
-      <div class="stat"><div class="l">🔥 Seri</div><div class="v" id="oStreak">0</div></div>
       <div class="stat"><div class="l">Bu ay</div><div class="v" id="oMonth">—</div></div>
-      <div class="stat"><div class="l">Bu hafta</div><div class="v" id="oWeek">—</div></div>
+      <div class="stat"><div class="l">Geçen ay</div><div class="v" id="oPrev">—</div></div>
+      <div class="stat"><div class="l">Bu yıl</div><div class="v" id="oYear">—</div></div>
     </div>
 
     <div class="card" style="margin-top:12px">
-      <h3>Hızlı ekle</h3>
-      <div class="chips" id="quick"></div>
-    </div>
-
-    <div class="card">
       <div class="row between"><h3 style="margin:0">Son kayıtlar</h3><a href="#gecmis" class="small" style="color:var(--green)">Tümü →</a></div>
       <div class="list" id="oRecent"></div>
     </div>
@@ -192,7 +187,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
   <!-- ALTIN -->
   <section class="view" id="v-altin">
     <div class="card" style="background:linear-gradient(145deg,#2d2510,#181b22);border-color:#4a3c14">
-      <div class="row between"><div class="small muted">Altın varlığım (bozdurma değeri)</div><span class="pricepill" id="aUpd">—</span></div>
+      <div class="row between"><div class="small muted">Altın & döviz varlığım (bozdurma değeri)</div><span class="pricepill" id="aUpd">—</span></div>
       <div class="big goldc" id="aTotal">—</div>
       <div class="row small" style="gap:14px;margin-top:4px">
         <span>≈ <b id="aGram">—</b> gram altın</span>
@@ -205,7 +200,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
       <div class="list" id="aPrices"></div>
     </div>
     <div class="card">
-      <div class="row between"><h3 style="margin:0">Altınlarım</h3><button class="chip" id="btnAddGold">+ Altın ekle</button></div>
+      <div class="row between"><h3 style="margin:0">Altın & dövizlerim</h3><button class="chip" id="btnAddGold">+ Ekle</button></div>
       <div class="list" id="aHold"></div>
     </div>
     <div class="card">
@@ -244,7 +239,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
 
 <nav><div class="in">
   <a href="#ozet" data-v="ozet"><span class="e">🏠</span>Özet</a>
-  <a href="#altin" data-v="altin"><span class="e">🪙</span>Altın</a>
+  <a href="#altin" data-v="altin"><span class="e">🪙</span>Altın·Döviz</a>
   <button class="fab" id="fab" aria-label="Kayıt ekle">+</button>
   <a href="#istatistik" data-v="istatistik"><span class="e">📊</span>İstatistik</a>
   <a href="#gecmis" data-v="gecmis"><span class="e">📜</span>Geçmiş</a>
@@ -261,7 +256,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
   <label>Kategori</label>
   <div class="chips" id="eCat"></div>
   <label for="eNote">Not (isteğe bağlı)</label>
-  <input id="eNote" placeholder="örn. Bugün kahveyi evde yaptım" autocomplete="off">
+  <input id="eNote" placeholder="örn. Maaştan ayırdım" autocomplete="off">
   <label for="eDate">Tarih</label>
   <input type="date" id="eDate">
   <button class="btn" id="eSave">Kaydet</button>
@@ -270,7 +265,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
 
 <!-- Altın ekle -->
 <div class="sheet" id="sGold">
-  <h2 id="gTitle">Altın işlemi</h2>
+  <h2 id="gTitle">Altın / döviz işlemi</h2>
   <div class="seg" id="gKind"><button data-k="buy" class="sel">Aldım</button><button data-k="sell">Sattım</button></div>
   <label for="gType">Tür</label>
   <select id="gType"></select>
@@ -289,7 +284,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
 <div class="sheet" id="sMonth">
   <h2>Aylık hedef</h2>
   <label for="mDefault">Her ay için varsayılan hedef (TL)</label>
-  <input id="mDefault" inputmode="decimal" placeholder="örn. 3000" autocomplete="off">
+  <input id="mDefault" inputmode="decimal" placeholder="örn. 20000" autocomplete="off">
   <label for="mThis" id="mThisL">Sadece bu ay için farklı hedef (isteğe bağlı)</label>
   <input id="mThis" inputmode="decimal" placeholder="Boş = varsayılan" autocomplete="off">
   <p class="privacy">Aylık hedef, o ay biriktirdiklerinden çektiklerinin çıkarılmasıyla hesaplanır. Nakitle altın alıp satman (birikimden düş/ekle seçeneği) bir aktarım sayılır ve aylık hedefi etkilemez.</p>
@@ -306,7 +301,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
   <input id="sAmt" inputmode="decimal" placeholder="örn. 50000" autocomplete="off">
   <label for="sDate">Hedef tarih (isteğe bağlı)</label>
   <input type="date" id="sDate">
-  <div class="check"><input type="checkbox" id="sIncGold" checked><span>Altın değerini hedefe dahil et</span></div>
+  <div class="check"><input type="checkbox" id="sIncGold" checked><span>Altın ve döviz değerini hedefe dahil et</span></div>
   <button class="btn" id="sSave">Kaydet</button>
 
   <h4>Yedek</h4>
@@ -316,7 +311,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
   <input type="file" id="sRestoreFile" accept="application/json,.json" hidden>
 
   <h4>Gizlilik</h4>
-  <p class="privacy">Tüm kayıtların yalnızca bu cihazda, tarayıcının uygulama deposunda tutulur. Hiçbir sunucuya gönderilmez; uygulamada hesap, reklam ya da analiz aracı yok. İnternete yalnızca altın fiyatlarını almak için çıkılır ve bu istekte senin hiçbir verin gönderilmez. Yedek dosyası yalnızca senin seçtiğin yere (örn. kendi Google Drive'ın) kaydedilir.</p>
+  <p class="privacy">Tüm kayıtların yalnızca bu cihazda, tarayıcının uygulama deposunda tutulur. Hiçbir sunucuya gönderilmez; uygulamada hesap, reklam ya da analiz aracı yok. İnternete yalnızca altın ve döviz fiyatlarını almak için çıkılır ve bu istekte senin hiçbir verin gönderilmez. Yedek dosyası yalnızca senin seçtiğin yere (örn. kendi Google Drive'ın) kaydedilir.</p>
   <button class="btn danger" id="sWipe">Bu cihazdaki tüm verileri sil</button>
 </div>
 
