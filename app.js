@@ -303,11 +303,9 @@ function renderAsset(p, only) {
   if (!fx) { const gp = priceOf('GRA'); $('aGram').textContent = gp ? N2.format(gv / gp) : '—'; }
   const pl = gv - cost;
   $(p + 'PL').innerHTML = cost > 0 ? `<span class="${pl >= 0 ? 'pos' : 'neg'}">${pl >= 0 ? '▲' : '▼'} ${TL.format(Math.abs(pl))} (${(pl / cost * 100).toFixed(1)}%)</span>` : '';
-  // Makas: şu an alıp hemen bozdursan kaybedeceğin tutar (bilgi amaçlı)
-  const h = holdings(); let spread = 0;
-  for (const t in h) { const q = S.prices?.items?.[t]; if (only(t) && q && h[t] > 0) spread += h[t] * (q.sell - q.buy); }
+  const h = holdings();
   $(p + 'Cost').innerHTML = cost > 0
-    ? `Ödediğin: <b>${TL.format(cost)}</b> · Bozdursan alacağın: <b>${TL.format(gv)}</b>${spread > 0 ? `<br>Bugünkü alış-satış farkı (makas): ${TL.format(spread)}. Yeni alındıysa görünen zararın büyük kısmı bu farktır; fiyat yükseldikçe kapanır.` : ''}`
+    ? `Ödediğin: <b>${TL.format(cost)}</b> · Bozdursan alacağın: <b>${TL.format(gv)}</b>`
     : '';
   const mins = priceAge();
   $(p + 'Upd').textContent = ageLabel();
@@ -315,7 +313,7 @@ function renderAsset(p, only) {
   const ic = fx ? '💵' : '🪙';
   $(p + 'Prices').innerHTML = S.prices ? SHOW_PRICES.filter(only).map(t => {
     const q = S.prices.items[t]; if (!q) return '';
-    return `<div class="it"><div class="ic">${ic}</div><div class="t"><b>${GOLD[t][0]}</b><span>Alış ${TL2.format(q.buy)} · Satış ${TL2.format(q.sell)}</span></div>
+    return `<div class="it"><div class="ic">${ic}</div><div class="t"><b>${GOLD[t][0]}</b><span>Alırken ${TL2.format(q.sell)} · Bozdururken ${TL2.format(q.buy)}</span></div>
     <div class="a ${q.change >= 0 ? 'pos' : 'neg'}">${q.change >= 0 ? '▲' : '▼'} %${Math.abs(q.change).toFixed(2)}</div></div>`;
   }).join('') : '<div class="empty">Fiyatlar alınamadı. İnternet bağlantını kontrol edip ↻ Yenile\'ye bas.</div>';
   const rows = Object.keys(h).filter(t => only(t) && Math.abs(h[t]) > 1e-9).map(t => {
@@ -559,7 +557,7 @@ function renderMonthly() {
       + kv('Kâr / zarar (kur ve fiyat etkisi)', fm(goldPL))
       + (p0 ? kv(`Gram altın (${d0 <= prevEnd ? 'ay başı' : dShort(d0)} → ${m === cur ? 'bugün' : 'ay sonu'})`, `<b>${TL2.format(p0)} → ${TL2.format(p1)} <span class="${p1 >= p0 ? 'pos' : 'neg'}">${p1 >= p0 ? '▲' : '▼'}%${Math.abs((p1 - p0) / p0 * 100).toFixed(1)}</span></b>`) : '')
       + (gl ? `<div class="small muted" style="margin-top:8px;line-height:1.6">${gl}</div>` : '')
-      + `<div class="small muted" style="margin-top:8px">Kâr/zarar = değerdeki değişim − bu ayki alımlar + satışlar. Değer bozdurma / alış kuruyla hesaplanır; alış-satış farkı (makas) dahildir.</div>`);
+      + `<div class="small muted" style="margin-top:8px">Kâr/zarar = değerdeki değişim − bu ayki alımlar + satışlar. Değer bozdururken alacağın fiyatla hesaplanır.</div>`);
   }
   // Toplam varlık
   html += card('Toplam varlık', kv('Ay başı', `<b>${TL.format(t0)}</b>`) + kv(m === cur ? 'Bugün' : 'Ay sonu', `<b>${TL.format(t1)}</b>`) + kv('Değişim', fm(dT))
@@ -712,7 +710,8 @@ $('gSave').onclick = () => {
   const qty = parseNum($('gQty').value); if (!(qty > 0)) { toast('Geçerli bir miktar gir'); return; }
   const t = $('gType').value, date = $('gDate').value || today();
   let unit = parseNum($('gPrice').value);
-  if (!(unit > 0)) unit = (gKind === 'buy' ? S.prices?.items?.[t]?.sell : S.prices?.items?.[t]?.buy) || 0;
+  // Boşsa değerlemedeki fiyat (o günün bozdurma fiyatı): yeni alım sahte bir zararla başlamasın
+  if (!(unit > 0)) unit = priceOf(t, date);
   const old = editGoldId ? S.gold.find(x => x.id === editGoldId) : null;
   // Satışta: bu işlem hariç eldeki miktar yeterli mi?
   const have = (holdings()[t] || 0) - (old && old.type === t ? old.qty : 0);
