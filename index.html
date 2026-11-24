@@ -66,7 +66,7 @@ header .sub{color:var(--muted);font-size:12px;margin-top:2px}
 .list .a{font-weight:700;text-align:right;white-space:nowrap}
 .del{background:none;border:0;color:var(--muted);font-size:15px;cursor:pointer;padding:4px 6px;font-family:inherit}
 nav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,17,21,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:10}
-nav .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 70px 1fr 1fr;align-items:center}
+nav .in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1fr 64px 1.5fr 1.5fr;align-items:center}
 nav a{color:var(--muted);text-decoration:none;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:600}
 nav a .e{font-size:20px;filter:grayscale(1);opacity:.7}
 nav a.act{color:var(--text)} nav a.act .e{filter:none;opacity:1}
@@ -187,7 +187,7 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
   <!-- ALTIN -->
   <section class="view" id="v-altin">
     <div class="card" style="background:linear-gradient(145deg,#2d2510,#181b22);border-color:#4a3c14">
-      <div class="row between"><div class="small muted">Altın & döviz varlığım (bozdurma değeri)</div><span class="pricepill" id="aUpd">—</span></div>
+      <div class="row between"><div class="small muted">Altın varlığım (bozdurma değeri)</div><span class="pricepill" id="aUpd">—</span></div>
       <div class="big goldc" id="aTotal">—</div>
       <div class="row small" style="gap:14px;margin-top:4px">
         <span>≈ <b id="aGram">—</b> gram altın</span>
@@ -200,13 +200,36 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
       <div class="list" id="aPrices"></div>
     </div>
     <div class="card">
-      <div class="row between"><h3 style="margin:0">Altın & dövizlerim</h3><button class="chip" id="btnAddGold">+ Ekle</button></div>
+      <div class="row between"><h3 style="margin:0">Altınlarım</h3><button class="chip" id="btnAddGold">+ Ekle</button></div>
       <div class="list" id="aHold"></div>
     </div>
     <div class="card">
       <h3>Gram altın fiyat geçmişi</h3>
       <div class="cw" style="height:180px" id="cGoldPriceW"><canvas id="cGoldPrice"></canvas></div>
       <div class="empty small" id="cGoldPriceEmpty">Fiyat geçmişi, uygulamayı açtığın her gün birikecek.</div>
+    </div>
+  </section>
+
+  <!-- DÖVİZ -->
+  <section class="view" id="v-doviz">
+    <div class="card" style="background:linear-gradient(145deg,#12263a,#181b22);border-color:#1f3a5a">
+      <div class="row between"><div class="small muted">Döviz varlığım (bozdurma değeri)</div><span class="pricepill" id="dUpd">—</span></div>
+      <div class="big" style="color:var(--blue)" id="dTotal">—</div>
+      <div class="row small" style="gap:14px;margin-top:4px"><span id="dPL"></span></div>
+      <div class="small muted" id="dCost" style="margin-top:8px;line-height:1.5"></div>
+    </div>
+    <div class="card">
+      <div class="row between"><h3 style="margin:0">Anlık kurlar</h3><button class="chip" data-act="refresh" style="padding:5px 10px;font-size:12px">↻ Yenile</button></div>
+      <div class="list" id="dPrices"></div>
+    </div>
+    <div class="card">
+      <div class="row between"><h3 style="margin:0">Dövizlerim</h3><button class="chip" id="btnAddFx">+ Ekle</button></div>
+      <div class="list" id="dHold"></div>
+    </div>
+    <div class="card">
+      <h3>Kur geçmişi</h3>
+      <div class="cw" style="height:200px" id="cFxPriceW"><canvas id="cFxPrice"></canvas></div>
+      <div class="empty small" id="cFxPriceEmpty">Kur geçmişi, uygulamayı açtığın her gün birikecek.</div>
     </div>
   </section>
 
@@ -239,7 +262,8 @@ input.amount{font-size:30px;font-weight:800;text-align:center;padding:14px}
 
 <nav><div class="in">
   <a href="#ozet" data-v="ozet"><span class="e">🏠</span>Özet</a>
-  <a href="#altin" data-v="altin"><span class="e">🪙</span>Altın·Döviz</a>
+  <a href="#altin" data-v="altin"><span class="e">🪙</span>Altın</a>
+  <a href="#doviz" data-v="doviz"><span class="e">💵</span>Döviz</a>
   <button class="fab" id="fab" aria-label="Kayıt ekle">+</button>
   <a href="#istatistik" data-v="istatistik"><span class="e">📊</span>İstatistik</a>
   <a href="#gecmis" data-v="gecmis"><span class="e">📜</span>Geçmiş</a>

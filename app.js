@@ -47,6 +47,8 @@ const GOLD = {
   USD: ['Dolar', '$'], EUR: ['Euro', '€'], GBP: ['Sterlin', '£']
 };
 const FX = new Set(['USD', 'EUR', 'GBP']);
+const isFx = t => FX.has(t), isGold = t => !FX.has(t);
+const FX_COL = { USD: '#34d399', EUR: '#60a5fa', GBP: '#a78bfa' };
 const SHOW_PRICES = ['GRA', 'CEYREKALTIN', 'YARIMALTIN', 'TAMALTIN', 'CUMHURIYETALTINI', 'YIA', 'USD', 'EUR', 'GBP'];
 const MILESTONES = [10, 25, 50, 75, 100];
 const PRICE_API = 'https://finans.truncgil.com/v4/today.json';
@@ -112,9 +114,9 @@ const signed = e => e.kind === 'withdraw' ? -e.amount : e.amount;
 const cashTotal = upTo => S.entries.reduce((a, e) => a + (!upTo || e.date <= upTo ? signed(e) : 0), 0);
 function holdings(upTo) { const h = {}; S.gold.forEach(g => { if (!upTo || g.date <= upTo) h[g.type] = (h[g.type] || 0) + g.qty; }); return h; }
 function goldValue(upTo, only = () => true) { const h = holdings(upTo); let v = 0; for (const t in h) if (only(t)) v += h[t] * priceOf(t, upTo); return v; }
-function goldCost() {
+function goldCost(only = () => true) {
   const per = {};
-  [...S.gold].sort((a, b) => a.date.localeCompare(b.date) || a.ts - b.ts).forEach(g => {
+  [...S.gold].filter(g => only(g.type)).sort((a, b) => a.date.localeCompare(b.date) || a.ts - b.ts).forEach(g => {
     const p = per[g.type] || (per[g.type] = { q: 0, c: 0 });
     if (g.qty > 0) { p.q += g.qty; p.c += g.qty * (g.unit || priceOf(g.type, g.date)); }
     else { const avg = p.q ? p.c / p.q : 0; p.q += g.qty; p.c += g.qty * avg; }
@@ -164,7 +166,7 @@ function confirmDlg(html, yesText = 'Onayla') {
 }
 function route() {
   const h = (location.hash || '#ozet').slice(1);
-  view = ['ozet', 'altin', 'istatistik', 'gecmis'].includes(h) ? h : 'ozet';
+  view = ['ozet', 'altin', 'doviz', 'istatistik', 'gecmis'].includes(h) ? h : 'ozet';
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('act', v.id === 'v-' + view));
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('act', a.dataset.v === view));
   render(); window.scrollTo(0, 0);
@@ -258,7 +260,8 @@ function render() {
     $('oMonth').innerHTML = fm(mn); $('oPrev').innerHTML = fm(monthNet(prevMonth(m))); $('oYear').innerHTML = fm(sumRange(m.slice(0, 4) + '-01-01', today()));
     $('oRecent').innerHTML = entryList(S.entries.slice(0, 5)) || '<div class="empty">Henüz kayıt yok. Aşağıdaki + ile ilk birikimini ekle!</div>';
   }
-  if (view === 'altin') renderGold();
+  if (view === 'altin') renderAsset('a', isGold);
+  if (view === 'doviz') renderAsset('d', isFx);
   if (view === 'istatistik') renderStats();
   if (view === 'gecmis') renderHistory();
   drawPriceAge();
@@ -286,42 +289,46 @@ function drawPriceAge() {
   document.querySelectorAll('.refresh').forEach(el => el.classList.toggle('stale', stale));
   document.querySelectorAll('[data-act="refresh"]').forEach(el => el.classList.toggle('loading', fetching));
 }
-function renderGold() {
-  const gv = goldValue(), cost = goldCost(), gp = priceOf('GRA'), gOnly = goldValue(undefined, t => !FX.has(t));
-  $('aTotal').textContent = TL.format(gv);
-  $('aGram').textContent = gp ? N2.format(gOnly / gp) : '—';
+// p: sayfa öneki ('a' altın, 'd' döviz); only: o sayfanın türleri
+function renderAsset(p, only) {
+  const fx = p === 'd', gv = goldValue(undefined, only), cost = goldCost(only);
+  $(p + 'Total').textContent = TL.format(gv);
+  if (!fx) { const gp = priceOf('GRA'); $('aGram').textContent = gp ? N2.format(gv / gp) : '—'; }
   const pl = gv - cost;
-  $('aPL').innerHTML = cost > 0 ? `<span class="${pl >= 0 ? 'pos' : 'neg'}">${pl >= 0 ? '▲' : '▼'} ${TL.format(Math.abs(pl))} (${(pl / cost * 100).toFixed(1)}%)</span>` : '';
+  $(p + 'PL').innerHTML = cost > 0 ? `<span class="${pl >= 0 ? 'pos' : 'neg'}">${pl >= 0 ? '▲' : '▼'} ${TL.format(Math.abs(pl))} (${(pl / cost * 100).toFixed(1)}%)</span>` : '';
   // Makas: şu an alıp hemen bozdursan kaybedeceğin tutar (bilgi amaçlı)
-  const h0 = holdings(); let spread = 0;
-  for (const t in h0) { const p = S.prices?.items?.[t]; if (p && h0[t] > 0) spread += h0[t] * (p.sell - p.buy); }
-  $('aCost').innerHTML = cost > 0
-    ? `Ödediğin: <b>${TL.format(cost)}</b> · Bozdursan alacağın: <b>${TL.format(gv)}</b>${spread > 0 ? `<br>Bugünkü alış-satış farkı (makas): ${TL.format(spread)}. Altın yeni alındıysa görünen zararın büyük kısmı bu farktır; fiyat yükseldikçe kapanır.` : ''}`
+  const h = holdings(); let spread = 0;
+  for (const t in h) { const q = S.prices?.items?.[t]; if (only(t) && q && h[t] > 0) spread += h[t] * (q.sell - q.buy); }
+  $(p + 'Cost').innerHTML = cost > 0
+    ? `Ödediğin: <b>${TL.format(cost)}</b> · Bozdursan alacağın: <b>${TL.format(gv)}</b>${spread > 0 ? `<br>Bugünkü alış-satış farkı (makas): ${TL.format(spread)}. Yeni alındıysa görünen zararın büyük kısmı bu farktır; fiyat yükseldikçe kapanır.` : ''}`
     : '';
   const mins = priceAge();
-  $('aUpd').textContent = ageLabel();
-  $('aUpd').classList.toggle('stale', mins === null || mins > 240);
-  $('aPrices').innerHTML = S.prices ? SHOW_PRICES.map(t => {
-    const p = S.prices.items[t]; if (!p) return '';
-    return `<div class="it"><div class="ic">${FX.has(t) ? '💵' : '🪙'}</div><div class="t"><b>${GOLD[t][0]}</b><span>Alış ${TL2.format(p.buy)} · Satış ${TL2.format(p.sell)}</span></div>
-    <div class="a ${p.change >= 0 ? 'pos' : 'neg'}">${p.change >= 0 ? '▲' : '▼'} %${Math.abs(p.change).toFixed(2)}</div></div>`;
+  $(p + 'Upd').textContent = ageLabel();
+  $(p + 'Upd').classList.toggle('stale', mins === null || mins > 240);
+  const ic = fx ? '💵' : '🪙';
+  $(p + 'Prices').innerHTML = S.prices ? SHOW_PRICES.filter(only).map(t => {
+    const q = S.prices.items[t]; if (!q) return '';
+    return `<div class="it"><div class="ic">${ic}</div><div class="t"><b>${GOLD[t][0]}</b><span>Alış ${TL2.format(q.buy)} · Satış ${TL2.format(q.sell)}</span></div>
+    <div class="a ${q.change >= 0 ? 'pos' : 'neg'}">${q.change >= 0 ? '▲' : '▼'} %${Math.abs(q.change).toFixed(2)}</div></div>`;
   }).join('') : '<div class="empty">Fiyatlar alınamadı. İnternet bağlantını kontrol edip ↻ Yenile\'ye bas.</div>';
-  const h = holdings();
-  const rows = Object.keys(h).filter(t => Math.abs(h[t]) > 1e-9).map(t => {
+  const rows = Object.keys(h).filter(t => only(t) && Math.abs(h[t]) > 1e-9).map(t => {
     const v = h[t] * priceOf(t);
-    return `<div class="it tap" data-gtype="${t}"><div class="ic">${FX.has(t) ? '💵' : '🟡'}</div><div class="t"><b>${GOLD[t][0]}</b><span>${N2.format(h[t])} ${GOLD[t][1]} × ${TL.format(priceOf(t))} · düzenlemek için dokun</span></div><div class="a goldc">${TL.format(v)}</div></div>`;
+    return `<div class="it tap" data-gtype="${t}"><div class="ic">${fx ? '💵' : '🟡'}</div><div class="t"><b>${GOLD[t][0]}</b><span>${N2.format(h[t])} ${GOLD[t][1]} × ${TL2.format(priceOf(t))} · düzenlemek için dokun</span></div><div class="a goldc">${TL.format(v)}</div></div>`;
   }).join('');
-  const tx = [...S.gold].sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts).map(g => `<div class="it tap" data-gedit="${g.id}"><div class="ic">${g.qty > 0 ? '⬇️' : '⬆️'}</div><div class="t"><b>${g.qty > 0 ? 'Alış' : 'Satış'}: ${N2.format(Math.abs(g.qty))} ${GOLD[g.type][1]} ${GOLD[g.type][0]}</b><span>${dShort(g.date)}${g.unit ? ` · birim ${TL.format(g.unit)}` : ''}</span></div><button class="del" data-gdel="${g.id}" aria-label="Sil">✕</button></div>`).join('');
-  $('aHold').innerHTML = rows ? rows + `<div class="small muted" style="margin:14px 0 4px">İşlemler</div>${tx}` : (tx || '<div class="empty">Altın ve dövizlerini ekle; anlık değerini ve kâr/zararını takip edelim.</div>');
-  const days = histDays.filter(d => S.hist[d].GRA);
-  const has = days.length >= 1;
-  $('cGoldPriceEmpty').style.display = days.length >= 2 ? 'none' : 'block';
-  $('cGoldPriceW').style.display = has ? '' : 'none';
-  // Çizgi + her günün üstünde içi boş sarı nokta
-  if (has) mkChart('cGoldPrice', { type: 'line', data: { labels: days.map(dShort), datasets: [{ label: 'Gram altın', data: days.map(d => S.hist[d].GRA),
-    borderColor: '#f5c542', borderWidth: 2, fill: false, tension: .25,
-    pointRadius: 5, pointHoverRadius: 7, pointBorderWidth: 2, pointBackgroundColor: '#181b22', pointBorderColor: '#f5c542', pointHoverBackgroundColor: '#f5c542' }] },
-    options: baseOpts({ plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { title: c => dLong(days[c[0].dataIndex]), label: c => 'Gram altın: ' + TL2.format(c.parsed.y) } } },
+  const tx = S.gold.filter(g => only(g.type)).sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts).map(g => `<div class="it tap" data-gedit="${g.id}"><div class="ic">${g.qty > 0 ? '⬇️' : '⬆️'}</div><div class="t"><b>${g.qty > 0 ? 'Alış' : 'Satış'}: ${N2.format(Math.abs(g.qty))} ${GOLD[g.type][1]} ${GOLD[g.type][0]}</b><span>${dShort(g.date)}${g.unit ? ` · birim ${TL2.format(g.unit)}` : ''}</span></div><button class="del" data-gdel="${g.id}" aria-label="Sil">✕</button></div>`).join('');
+  $(p + 'Hold').innerHTML = rows ? rows + `<div class="small muted" style="margin:14px 0 4px">İşlemler</div>${tx}` : (tx || `<div class="empty">${fx ? 'Dövizlerini' : 'Altınlarını'} ekle; anlık değerini ve kâr/zararını takip edelim.</div>`);
+
+  // Fiyat geçmişi: altında gram altın, dövizde her kur ayrı çizgi (içi boş noktalı)
+  const types = fx ? [...FX] : ['GRA'], col = t => fx ? FX_COL[t] : '#f5c542';
+  const days = histDays.filter(d => types.some(t => S.hist[d][t]));
+  const id = fx ? 'cFxPrice' : 'cGoldPrice';
+  $(id + 'Empty').style.display = days.length >= 2 ? 'none' : 'block';
+  $(id + 'W').style.display = days.length ? '' : 'none';
+  if (days.length) mkChart(id, { type: 'line', data: { labels: days.map(dShort), datasets: types.map(t => ({ label: GOLD[t][0], data: days.map(d => S.hist[d][t] ?? null), spanGaps: true,
+    borderColor: col(t), borderWidth: 2, fill: false, tension: .25,
+    pointRadius: days.length <= 45 ? 5 : 0, pointHoverRadius: 7, pointBorderWidth: 2, pointBackgroundColor: '#181b22', pointBorderColor: col(t), pointHoverBackgroundColor: col(t) })) },
+    options: baseOpts({ interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: fx, labels: { color: '#8b93a3', boxWidth: 10 } }, tooltip: { displayColors: fx, callbacks: { title: c => dLong(days[c[0].dataIndex]), label: c => ` ${c.dataset.label}: ${TL2.format(c.parsed.y)}` } } },
       scales: { x: axisX, y: { grid: { color: '#232833' }, ticks: { color: '#8b93a3', font: { size: 10 }, callback: v => N2.format(v) } } } }) });
 }
 
@@ -371,11 +378,11 @@ function renderStats() {
   const step = Math.max(1, Math.ceil(n / 90)), days = [];
   for (let i = 0; i <= n; i += step) days.push(addDays(start, i));
   if (days[days.length - 1] !== t) days.push(t);
-  const totS = days.map(d => cashTotal(d) + goldValue(d)), goldS = days.map(d => goldValue(d));
+  const totS = days.map(d => cashTotal(d) + goldValue(d)), goldS = days.map(d => goldValue(d, isGold)), fxS = days.map(d => goldValue(d, isFx));
   const pts = days.length <= 45;
   const line = (label, data, color) => ({ label, data, borderColor: color, borderWidth: 2, fill: false, tension: .25,
     pointRadius: pts ? 4 : 0, pointHoverRadius: 6, pointBorderWidth: 2, pointBackgroundColor: '#181b22', pointBorderColor: color });
-  mkChart('cNet', { type: 'line', data: { labels: days.map(dShort), datasets: [line('Toplam varlık', totS, '#34d399'), line('Altın & döviz', goldS, '#f5c542')] },
+  mkChart('cNet', { type: 'line', data: { labels: days.map(dShort), datasets: [line('Toplam varlık', totS, '#34d399'), line('Altın', goldS, '#f5c542'), ...(fxS.some(v => v) ? [line('Döviz', fxS, '#60a5fa')] : [])] },
     options: baseOpts({ interaction: { mode: 'index', intersect: false },
       plugins: { legend: { display: true, labels: { color: '#8b93a3', boxWidth: 10 } }, tooltip: { callbacks: { title: c => dLong(days[c[0].dataIndex]), label: c => ` ${c.dataset.label}: ${TL.format(c.parsed.y)}` } } } }) });
   const bas = S.entries.filter(e => e.category === 'baslangic').reduce((a, e) => a + e.amount, 0);
@@ -635,17 +642,17 @@ $('eDelete').onclick = () => {
 
 // ---- Altın işlemi ekleme / düzenleme ----
 let gKind = 'buy', editGoldId = null;
-$('gType').innerHTML = Object.entries(GOLD).map(([k, v]) => `<option value="${k}">${v[0]} (${v[1]})</option>`).join('');
 const gLabels = () => { $('gQtyL').textContent = `Miktar (${GOLD[$('gType').value][1]})`; $('gLinkL').textContent = gKind === 'buy' ? 'Bu tutarı TL birikimimden düş' : 'Satıştan geleni TL birikimime ekle'; };
 $('gType').onchange = gLabels;
 $('gKind').onclick = ev => { const b = ev.target.closest('button'); if (!b) return; gKind = b.dataset.k; setSeg('gKind', gKind); gLabels(); };
-function openGoldSheet(g) {
+function openGoldSheet(g, fx = g ? isFx(g.type) : false) {
   editGoldId = g ? g.id : null;
+  $('gType').innerHTML = Object.entries(GOLD).filter(([k]) => isFx(k) === fx).map(([k, v]) => `<option value="${k}">${v[0]} (${v[1]})</option>`).join('');
   gKind = g && g.qty < 0 ? 'sell' : 'buy'; setSeg('gKind', gKind);
-  $('gTitle').textContent = g ? 'İşlemi düzenle' : 'Altın / döviz işlemi';
+  $('gTitle').textContent = (g ? 'İşlemi düzenle' : fx ? 'Döviz işlemi' : 'Altın işlemi');
   $('gSave').textContent = g ? 'Güncelle' : 'Kaydet';
   $('gDelete').style.display = g ? '' : 'none'; delete $('gDelete').dataset.confirm; $('gDelete').textContent = 'Bu işlemi sil';
-  $('gType').value = g ? g.type : 'GRA';
+  $('gType').value = g ? g.type : fx ? 'USD' : 'GRA';
   $('gQty').value = g ? String(Math.abs(g.qty)).replace('.', ',') : '';
   $('gPrice').value = g && g.unit ? String(g.unit).replace('.', ',') : '';
   $('gDate').value = g ? g.date : today(); $('gDate').max = today();
@@ -653,7 +660,8 @@ function openGoldSheet(g) {
   gLabels(); openSheet('sGold');
 }
 function openGoldEdit(id) { const g = S.gold.find(x => x.id === id); if (g) openGoldSheet(g); }
-$('btnAddGold').onclick = () => openGoldSheet(null);
+$('btnAddGold').onclick = () => openGoldSheet(null, false);
+$('btnAddFx').onclick = () => openGoldSheet(null, true);
 $('gSave').onclick = () => {
   const qty = parseNum($('gQty').value); if (!(qty > 0)) { toast('Geçerli bir miktar gir'); return; }
   const t = $('gType').value, date = $('gDate').value || today();
